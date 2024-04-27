@@ -8,7 +8,16 @@ from fireplace.lights.noise import load_noise, noise_files_dir, quadratic_mask
 from fireplace.lights.utils import ColorMap, hex_to_rgb
 
 # https://coolors.co/260c02-542c0b-802c08-be320b-f48405-ffa632
-HEX_PALETTE = ["260c02", "542c0b", "802c08", "be320b", "f48405", "ffa632"]
+HEX_PALETTE = [
+    "1f0900",
+    "542c0b",
+    "802c08",
+    "9f2f0a",
+    "be320b",
+    "d95b08",
+    "f48405",
+    "fcb308",
+]
 rgb_palette = [hex_to_rgb(color) for color in HEX_PALETTE]
 
 screen_size = (8, 8)
@@ -19,7 +28,7 @@ noise_back = load_noise(noise_files_dir)
 
 colormap = ColorMap(rgb_palette)
 
-test_mask = quadratic_mask(screen_size, 0.4, 1.2).T
+test_mask = quadratic_mask(screen_size, 0.2, 1.2).T
 
 # Choose an open pin connected to the Data In of the NeoPixel strip, i.e. board.D18
 # NeoPixels must be connected to D10, D12, D18 or D21 to work.
