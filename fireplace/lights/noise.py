@@ -6,7 +6,7 @@ from pathlib import Path
 
 import numpy as np
 
-noise_files_dir = Path(__file__).resolve().parents[1] / "data" / "perlin_noise"
+noise_files_dir = Path(__file__).resolve().parents[2] / "data" / "perlin_noise"
 
 
 def quadratic_mask(size, initial_value, final_value):
@@ -148,7 +148,7 @@ def generate_noise_files(
             seed=random.randint(0, 20000),
         )
         print(f"Generating file {file_no}...")
-        noise = perlin.render(octaves=4, relative_factor=2)
+        noise = perlin.render(octaves=4, relative_factor=0.5)
         np.save(noise_files_dir / f"noise_{str(file_no)}.npy", noise)
         print("Generation and saving complete\n")
 

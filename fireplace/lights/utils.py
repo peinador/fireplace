@@ -39,7 +39,7 @@ class ColorMap:
 
     @staticmethod
     def interpolate_two_colors(x: np.ndarray, color1: np.ndarray, color2: np.ndarray):
-        expanded_x = np.repeat(x[:, :, np.newaxis], 3, axis=2)
+        expanded_x = np.repeat(x[..., np.newaxis], 3, axis=-1)
         interpolation = color1 + (color2 - color1) * expanded_x
         result = np.round(interpolation).astype(int)
         return result
