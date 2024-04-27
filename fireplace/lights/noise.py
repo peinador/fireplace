@@ -1,6 +1,12 @@
-from typing import List, Tuple
+from typing import List, Optional, Tuple, Union
+
+import os
+import random
+from pathlib import Path
 
 import numpy as np
+
+noise_files_dir = Path(__file__).resolve().parents[1] / "data" / "perlin_noise"
 
 
 def quadratic_mask(size, initial_value, final_value):
@@ -126,3 +132,36 @@ class PerlinNoise:
             amplitude *= persistence
 
         return self.postprocess(noise)
+
+
+def generate_noise_files(
+    noise_files_dir: Union[str, os.PathLike], n_files: int, length: int, width: int = 8
+) -> None:
+    isExist = os.path.exists(noise_files_dir)
+    if not isExist:
+        os.makedirs(noise_files_dir)
+    print()
+    for file_no in range(n_files):
+        perlin = PerlinNoise(
+            shape=(length, width),
+            repetition_period=length,
+            seed=random.randint(0, 20000),
+        )
+        print(f"Generating file {file_no}...")
+        noise = perlin.render(octaves=4, relative_factor=2)
+        np.save(noise_files_dir / f"noise_{str(file_no)}.npy", noise)
+        print("Generation and saving complete\n")
+
+    print("Processed finished\n\n")
+
+
+def load_noise(
+    noise_files_dir: Union[str, os.PathLike], index: Optional[int] = None
+) -> np.ndarray:
+    files = os.listdir(noise_files_dir)
+    if index is None:
+        index = random.randint(0, len(files) - 1)
+    assert index < len(files)
+    filename = files[index]
+    array = np.load(os.path.join(noise_files_dir, filename))
+    return array
