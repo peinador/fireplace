@@ -4,5 +4,7 @@
 
 cd /
 cd home/pi/fireplace/fireplace
+export TERM=xterm
+sleep 40
 sudo python main.py
 cd /

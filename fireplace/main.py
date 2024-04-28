@@ -36,7 +36,7 @@ dtLastState = GPIO.HIGH
 
 # audio
 AUDIO_PATH = "/home/pi/fireplace/data/fireplace_mp3"
-MAX_TIME = 240
+MAX_TIME = 3600
 MUSIC_END = pygame.USEREVENT + 1
 volume = 1.0
 set_volume = lambda value: pygame.mixer.music.set_volume(value / 100)
