@@ -11,13 +11,14 @@ from fireplace.lights.utils import ColorMap, hex_to_rgb
 HEX_PALETTE = [
     "1f0900",
     "542c0b",
-    "802c08",
-    "9f2f0a",
-    "be320b",
+    "873f01",
+    "984c00",
+    "ad5c00",
     "d95b08",
     "f48405",
     "fcb308",
 ]
+
 rgb_palette = [hex_to_rgb(color) for color in HEX_PALETTE]
 
 screen_size = (8, 8)

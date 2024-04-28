@@ -1,9 +1,11 @@
 import os
 import time
 from itertools import cycle
+from logging import getLogger
 
 import pygame
-from loguru import logger
+
+logger = getLogger("__main__")
 
 AUDIO_PATH = "/home/pi/fireplace/data/fireplace_mp3"
 # AUDIO_PATH = "/home/pi/fireplace/data/sample.mp3"

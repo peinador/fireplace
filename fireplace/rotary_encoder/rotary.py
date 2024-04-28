@@ -1,4 +1,4 @@
-from typing import Optional
+from typing import List, Optional, Tuple
 
 import time
 
@@ -6,16 +6,31 @@ import RPi.GPIO as GPIO
 
 
 class Counter:
-    def __init__(self, value: Optional[int] = None):
+    def __init__(
+        self,
+        value: Optional[float] = None,
+        range: Tuple[float, float] = (0, 100),
+        step: float = 1,
+        callbacks: List[function] = [],
+    ):
         self.value = value if value is not None else 0
         self.CLK_Last = GPIO.HIGH
         self.dtLastState = GPIO.HIGH
+        self.step = step
+        self.range = range
+        self.callbacks = callbacks
+
+    def callbacks(self):
+        for fun in self.callbacks:
+            fun(self.value)
 
     def up(self):
-        self.value += 1
+        self.value = min(self.value + self.step, self.range[1])
+        self.callbacks()
 
     def down(self):
-        self.value -= 1
+        self.value = max(self.value - self.step, self.range[0])
+        self.callbacks()
 
     def __repr__(self) -> str:
         return str(self.value)
