@@ -54,7 +54,7 @@ def show_colors(pixels: neopixel.NeoPixel, temperature: np.ndarray, colormap: Co
     """
     coloured: np.ndarray = colormap(temperature)
     for i in range(num_pixels):
-        row = i // coloured.shape[1]
+        row = (coloured.shape[0] - 1) - (i // coloured.shape[1])
         col = i % coloured.shape[1]
         pixels[i] = list(coloured[row, col, :])
     pixels.show()

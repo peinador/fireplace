@@ -36,13 +36,12 @@ dtLastState = GPIO.HIGH
 
 # audio
 AUDIO_PATH = "/home/pi/fireplace/data/fireplace_mp3"
-MAX_TIME = 60
+MAX_TIME = 240
 MUSIC_END = pygame.USEREVENT + 1
 volume = 1.0
 set_volume = lambda value: pygame.mixer.music.set_volume(value / 100)
 
 # leds
-
 HEX_PALETTE = [
     "1f0900",
     "542c0b",
@@ -58,14 +57,23 @@ screen_size = (8, 8)
 num_pixels = np.prod(screen_size)
 pixel_pin = board.D12
 COLOR_ORDER = neopixel.GRB
-print("\r conf done, about to go into init context")
+pixels = neopixel.NeoPixel(
+    pixel_pin, num_pixels, brightness=0.2, auto_write=False, pixel_order=COLOR_ORDER
+)
+
+
+def set_brightness(value):
+    pixels.brightness = value / 100 * 0.5
+
 
 if __name__ == "__main__":
     # init encoder
     GPIO.setmode(GPIO.BCM)
     GPIO.setup(CLK_PIN, GPIO.IN, pull_up_down=GPIO.PUD_UP)
     GPIO.setup(DT_PIN, GPIO.IN, pull_up_down=GPIO.PUD_UP)
-    counter = Counter(value=80, range=(0, 100), step=2, callbacks=[set_volume])
+    counter = Counter(
+        value=80, range=(0, 100), step=2, callbacks=[set_volume, set_brightness]
+    )
     encoder_callback = create_encoder_callback(counter, logger=logger)
     GPIO.add_event_detect(CLK_PIN, GPIO.BOTH, callback=encoder_callback)
 
@@ -81,14 +89,10 @@ if __name__ == "__main__":
     noise_back = load_noise(noise_files_dir)
     colormap = ColorMap(rgb_palette)
     test_mask = quadratic_mask(screen_size, 0.2, 1.2).T
-    pixels = neopixel.NeoPixel(
-        pixel_pin, num_pixels, brightness=0.2, auto_write=False, pixel_order=COLOR_ORDER
-    )
     window = screen_size[1]
     max_step = noise.shape[0] - window
     step = 0
 
-    print("\r init done, about to go into try context")
     try:
         play_next(audio_files)
         start = time.time()
@@ -118,6 +122,7 @@ if __name__ == "__main__":
             temperature = screen * test_mask
             show_colors(pixels=pixels, temperature=temperature, colormap=colormap)
             time.sleep(0.006)
+
     except Exception as e:
         logger.critical(f"Encountered error {e}")
         time.sleep(10)

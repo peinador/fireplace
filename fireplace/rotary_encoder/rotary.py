@@ -43,17 +43,12 @@ def create_encoder_callback(
     def encoder_callback(channel):
         DT_State = GPIO.input(DT_PIN)
         CLK_State = GPIO.input(CLK_PIN)
-        # time.sleep(0.001)
+        time.sleep(0.002)  # debounce time
 
-        if DT_State != counter.dtLastState:
-            # counter.dtLastState = DT_State
-            time.sleep(0.002)  # debounce time
-            # DT_State = GPIO.input(DT_PIN)
-            # if CLK_State != counter.CLK_Last: #and DT_State == counter.dtLastState:
-            if CLK_State != DT_State:
-                counter.up()
-            else:
-                counter.down()
+        if CLK_State != DT_State:
+            counter.up()
+        elif DT_State != counter.dtLastState:
+            counter.down()
         if logger is None:
             print("counter:", counter)
         else:
