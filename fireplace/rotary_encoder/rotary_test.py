@@ -20,7 +20,7 @@ if __name__ == "__main__":
         GPIO.setmode(GPIO.BCM)
         GPIO.setup(CLK_PIN, GPIO.IN, pull_up_down=GPIO.PUD_UP)
         GPIO.setup(DT_PIN, GPIO.IN, pull_up_down=GPIO.PUD_UP)
-        counter = Counter(value=0.5, range=(0, 1))
+        counter = Counter(value=50, range=(0, 100), step=2)
         encoder_callback = create_encoder_callback(counter)
         GPIO.add_event_detect(CLK_PIN, GPIO.BOTH, callback=encoder_callback)
         while True:

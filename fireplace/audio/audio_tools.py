@@ -8,8 +8,6 @@ import pygame
 logger = getLogger(__name__)
 
 AUDIO_FORMATS = [".mp3", ".wav"]
-MAX_TIME = 3600
-MUSIC_END = pygame.USEREVENT + 1
 
 
 def is_audio_file(path: str):

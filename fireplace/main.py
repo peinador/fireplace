@@ -1,0 +1,131 @@
+import logging
+import os
+import sys
+import time
+from itertools import cycle
+
+import board
+import neopixel
+import numpy as np
+import pygame
+import RPi.GPIO as GPIO
+
+from fireplace.audio.audio_tools import *
+from fireplace.lights.noise import load_noise, noise_files_dir, quadratic_mask
+from fireplace.lights.play_fire import show_colors
+from fireplace.lights.utils import ColorMap, hex_to_rgb
+from fireplace.rotary_encoder.rotary import Counter, create_encoder_callback
+
+# logging
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.DEBUG)
+stream_handler = logging.StreamHandler(stream=sys.stdout)
+stream_handler.setLevel(logging.DEBUG)
+formatter = logging.Formatter("\r%(asctime)s - %(name)s - %(levelname)s - %(message)s")
+stream_handler.setFormatter(formatter)
+logger.addHandler(stream_handler)
+
+
+# CONFIGURATION
+
+# rotary encoder
+CLK_PIN = 23
+DT_PIN = 8
+CLK_Last = GPIO.HIGH
+dtLastState = GPIO.HIGH
+
+# audio
+AUDIO_PATH = "/home/pi/fireplace/data/fireplace_mp3"
+MAX_TIME = 60
+MUSIC_END = pygame.USEREVENT + 1
+volume = 1.0
+set_volume = lambda value: pygame.mixer.music.set_volume(value / 100)
+
+# leds
+
+HEX_PALETTE = [
+    "1f0900",
+    "542c0b",
+    "873f01",
+    "984c00",
+    "ad5c00",
+    "d95b08",
+    "f48405",
+    "fcb308",
+]  # https://coolors.co/260c02-542c0b-802c08-be320b-f48405-ffa632
+rgb_palette = [hex_to_rgb(color) for color in HEX_PALETTE]
+screen_size = (8, 8)
+num_pixels = np.prod(screen_size)
+pixel_pin = board.D12
+COLOR_ORDER = neopixel.GRB
+print("\r conf done, about to go into init context")
+
+if __name__ == "__main__":
+    # init encoder
+    GPIO.setmode(GPIO.BCM)
+    GPIO.setup(CLK_PIN, GPIO.IN, pull_up_down=GPIO.PUD_UP)
+    GPIO.setup(DT_PIN, GPIO.IN, pull_up_down=GPIO.PUD_UP)
+    counter = Counter(value=80, range=(0, 100), step=2, callbacks=[set_volume])
+    encoder_callback = create_encoder_callback(counter, logger=logger)
+    GPIO.add_event_detect(CLK_PIN, GPIO.BOTH, callback=encoder_callback)
+
+    # init audio
+    audio_files = get_audio_files(audio_path=AUDIO_PATH)
+    pygame.init()
+    pygame.mixer.init()
+    pygame.mixer.music.set_endevent(MUSIC_END)
+    set_volume(counter.value)
+
+    # init leds
+    noise = load_noise(noise_files_dir)
+    noise_back = load_noise(noise_files_dir)
+    colormap = ColorMap(rgb_palette)
+    test_mask = quadratic_mask(screen_size, 0.2, 1.2).T
+    pixels = neopixel.NeoPixel(
+        pixel_pin, num_pixels, brightness=0.2, auto_write=False, pixel_order=COLOR_ORDER
+    )
+    window = screen_size[1]
+    max_step = noise.shape[0] - window
+    step = 0
+
+    print("\r init done, about to go into try context")
+    try:
+        play_next(audio_files)
+        start = time.time()
+        stop = False
+        while (time.time() - start < MAX_TIME) and not stop:
+            for event in pygame.event.get():
+                # A event will be hosted
+                # after the end of every song
+                if event.type == MUSIC_END:
+                    logger.info("Song Finished")
+                    play_next(audio_files)
+
+                # Check user input
+                elif event.type == pygame.KEYDOWN:
+                    if event.key == pygame.K_RETURN or event.key == pygame.K_q:
+                        stop = True
+
+            if step < max_step:
+                screen = noise[step : (step + window)]
+            else:
+                step = 0
+                noise = noise_back
+                max_step = noise.shape[0] - window
+                noise_back = load_noise(noise_files_dir)
+                screen = noise[step : (step + window)]
+            step += 1
+            temperature = screen * test_mask
+            show_colors(pixels=pixels, temperature=temperature, colormap=colormap)
+            time.sleep(0.006)
+    except Exception as e:
+        logger.critical(f"Encountered error {e}")
+        time.sleep(10)
+    finally:
+        for i in range(num_pixels):
+            pixels[i] = (0, 0, 0)
+        pixels.show()
+        print("Interrupted; Pixels Reset")
+        pygame.quit()
+        GPIO.remove_event_detect(CLK_PIN)
+        GPIO.cleanup()

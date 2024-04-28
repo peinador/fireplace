@@ -4,7 +4,7 @@ Awesome `fireplace` is a Python package to run a fireplace animation in a raspbe
 
 To copy the code to the raspberry pi using ssh use:
 ```bash
-scp -r ./ pi@raspberrypi:/home/pi/fireplace
+source send_files.sh
 ```
 
 
