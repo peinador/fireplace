@@ -5,6 +5,7 @@ It displays flame animations on a 8x8 ws2812 LED (neopixel) display.
 It also sends audio output to a speaker connected to the pi (I2S encoding).
 Additionally, a rotary encoder provies control over the intensity of the LEDs and speaker volume.
 
+![GIF showing the end result](docs/demo_gif.gif)
 ## Installation
 To install the package run:
 ```

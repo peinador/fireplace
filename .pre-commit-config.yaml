@@ -11,6 +11,11 @@ repos:
       - id: end-of-file-fixer
         exclude: LICENSE
 
+  - repo: https://github.com/kynan/nbstripout
+    rev: 0.3.9
+    hooks:
+    - id: nbstripout
+
   - repo: local
     hooks:
       - id: isort
