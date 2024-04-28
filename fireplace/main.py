@@ -12,8 +12,7 @@ import RPi.GPIO as GPIO
 
 from fireplace.audio.audio_tools import *
 from fireplace.lights.noise import load_noise, noise_files_dir, quadratic_mask
-from fireplace.lights.play_fire import show_colors
-from fireplace.lights.utils import ColorMap, hex_to_rgb
+from fireplace.lights.utils import ColorMap, hex_to_rgb, show_colors
 from fireplace.rotary_encoder.rotary import Counter, create_encoder_callback
 
 # logging
@@ -24,7 +23,6 @@ stream_handler.setLevel(logging.DEBUG)
 formatter = logging.Formatter("\r%(asctime)s - %(name)s - %(levelname)s - %(message)s")
 stream_handler.setFormatter(formatter)
 logger.addHandler(stream_handler)
-
 
 # CONFIGURATION
 
@@ -38,8 +36,7 @@ dtLastState = GPIO.HIGH
 AUDIO_PATH = "/home/pi/fireplace/data/fireplace_mp3"
 MAX_TIME = 3600
 MUSIC_END = pygame.USEREVENT + 1
-volume = 1.0
-set_volume = lambda value: pygame.mixer.music.set_volume(value / 100)
+set_volume = lambda value: pygame.mixer.music.set_volume(value / 100 * 0.5)
 
 # leds
 HEX_PALETTE = [

@@ -5,7 +5,7 @@ import neopixel
 import numpy as np
 
 from fireplace.lights.noise import load_noise, noise_files_dir, quadratic_mask
-from fireplace.lights.utils import ColorMap, hex_to_rgb
+from fireplace.lights.utils import ColorMap, hex_to_rgb, show_colors
 
 # https://coolors.co/260c02-542c0b-802c08-be320b-f48405-ffa632
 HEX_PALETTE = [
@@ -41,23 +41,6 @@ ORDER = neopixel.GRB
 pixels = neopixel.NeoPixel(
     pixel_pin, num_pixels, brightness=0.2, auto_write=False, pixel_order=ORDER
 )
-
-
-def show_colors(pixels: neopixel.NeoPixel, temperature: np.ndarray, colormap: ColorMap):
-    """
-    converts temperature values to color and shows them on the leds
-
-    Args:
-        pixels (neopixel.NeoPixel): pixels object
-        temperature (List): temperature values. Values range from 0 to 1
-        colormap (ColorMap):  color map to translate temperature to colour
-    """
-    coloured: np.ndarray = colormap(temperature)
-    for i in range(num_pixels):
-        row = (coloured.shape[0] - 1) - (i // coloured.shape[1])
-        col = i % coloured.shape[1]
-        pixels[i] = list(coloured[row, col, :])
-    pixels.show()
 
 
 if __name__ == "__main__":
