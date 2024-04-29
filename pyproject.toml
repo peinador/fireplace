@@ -6,12 +6,12 @@ build-backend = "poetry.core.masonry.api"
 [tool.poetry]
 name = "fireplace"
 version = "0.1.0"
-description = "Awesome `fireplace` is a Python cli/package created with https://github.com/TezRomacH/python-package-template"
+description = "Fireplace is a Python package to run a fireplace animation in a raspberry Pi Zero W2"
 readme = "README.md"
-authors = ["fireplace <hello@fireplace.com>"]
+authors = ["peinador"]
 license = "MIT"
-repository = "https://github.com/fireplace/fireplace"
-homepage = "https://github.com/fireplace/fireplace"
+repository = "https://github.com/peinador/fireplace"
+homepage = "https://github.com/peinador/fireplace"
 
 # Keywords description https://python-poetry.org/docs/pyproject/#keywords
 keywords = []  #! Update me
@@ -28,10 +28,12 @@ classifiers = [  #! Update me
 ]
 
 
-
 [tool.poetry.dependencies]
 python = "^3.9"
 click = "^8.0.0"
+pygame = "^2.5.2"
+numpy = "^1.26.4"
+matplotlib = "^3.8.3"
 
 [tool.poetry.dev-dependencies]
 bandit = "^1.7.1"
@@ -42,15 +44,8 @@ isort = {extras = ["colors"], version = "^5.10.1"}
 mypy = "^0.910"
 mypy-extensions = "^0.4.3"
 pre-commit = "^2.15.0"
-pydocstyle = "^6.1.1"
 pylint = "^2.11.1"
 pytest = "^6.2.5"
-pyupgrade = "^2.29.1"
-safety = "^1.10.3"
-coverage = "^6.1.2"
-coverage-badge = "^1.1.0"
-pytest-html = "^3.1.1"
-pytest-cov = "^3.0.0"
 
 
 [tool.black]
