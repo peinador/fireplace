@@ -41,14 +41,15 @@ set_volume = lambda value: pygame.mixer.music.set_volume(value / 100 * 0.5)
 # leds
 HEX_PALETTE = [
     "1f0900",
-    "542c0b",
-    "873f01",
-    "984c00",
+    "54370b",
+    "754b03",
+    "8e5318",
     "ad5c00",
-    "d95b08",
-    "f48405",
+    "d97b09",
+    "fa9a2c",
     "fcb308",
-]  # https://coolors.co/260c02-542c0b-802c08-be320b-f48405-ffa632
+]
+# https://coolors.co/1f0900-54370b-754b03-8e5318-ad5c00-d97b09-fa9a2c-fcb308
 rgb_palette = [hex_to_rgb(color) for color in HEX_PALETTE]
 screen_size = (8, 8)
 num_pixels = np.prod(screen_size)
