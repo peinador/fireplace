@@ -5,7 +5,7 @@ build-backend = "poetry.core.masonry.api"
 
 [tool.poetry]
 name = "fireplace"
-version = "0.1.0"
+version = "1.0.0"
 description = "Fireplace is a Python package to run a fireplace animation in a raspberry Pi Zero W2"
 readme = "README.md"
 authors = ["peinador"]
