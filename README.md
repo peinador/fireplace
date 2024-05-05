@@ -1,18 +1,21 @@
-# fireplace
+# fireplace 🔥
+
+Who doesn't like the soft flickering light and crackling sound of a fireplace? The fire brigade and my landlord.
 
 Fireplace is a Python package to run a fireplace animation in a Raspberry Pi Zero W2.
-It displays flame animations on an 8x8 ws2812 LED (neopixel) display.
-It also sends audio output to a speaker connected to the pi (I2S encoding).
+It displays a flame animation on an 8x8 ws2812 LED (neopixel) display.
+It also sends audio output to a speaker connected to the Pi (I2S encoding).
 Additionally, a rotary encoder provides control over the intensity of the LEDs and speaker volume.
 
-![GIF showing the end result](docs/demo_gif.gif)
+<img src="docs/demo_gif.gif" alt="GIF showing the end result" height="300"/>  <img src="docs/demo_gif_2.gif" alt="GIF showing the end result" height="300"/>
+
 ## Installation
 To install the package run:
 ```
 pip install -e .
 ```
 Before running the animations two things need to be done:
-1. Add audio files (MP3 or WAV) in `data/fireplace_mp3/`. You might need to create the directory if it does not exist. A collection of free fireplace sounds can be found [here](https://www.freetousesounds.com/free-fireplace-sound-effects/).
+1. Add audio files (MP3 or WAV) in `data/audio_files/`. You might need to create the directory if it does not exist. A collection of free fireplace sounds can be found [here](https://www.freetousesounds.com/free-fireplace-sound-effects/).
 2. Generate the noise image files by running `python fireplace/lights/generate_noise_files`. This creates a series of numpy files in `data/perlin_noise`.
 3. Make sure that the audio output is configured as I2S; following the instructions in reference [1].
 4. Raspberry Pi specific installs:
@@ -30,7 +33,7 @@ Before running the animations two things need to be done:
     sudo apt-get install python3-rpi.gpio
     ```
 
-## Use
+## Usage
 To run the main animation file run:
 ```
 sudo python fireplace/main.py
@@ -100,7 +103,8 @@ The Raspberry Pi is not directly soldered to the board. Instead, it has male hea
 Some things could be improved, although there are no plans to do it:
 - It takes a minute or two to start the simulation after powering the pi. This is due to the time it takes to boot the system
 - The simulation is slow in the first minutes
-- Control the iteration time. 
+- Better control over the iteration tim
+- Better configurations management.
 - The speaker makes a popping noise when booting the Pi. This is probably due to the I2S configuration, and the Adafruit article linked below has a troubleshooting appendix. However, it was not very annoying and it was useful for knowing when the pi had booted.
 - The enclosure is rather tight. It would have been better to have an enclosure that was taller (bigger on its smaller axis). 
 - Better LED simulation

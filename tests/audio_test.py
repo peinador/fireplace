@@ -9,7 +9,7 @@ from fireplace.audio.audio_tools import *
 
 logger = getLogger(__name__)
 
-AUDIO_PATH = "/home/pi/fireplace/data/fireplace_mp3"
+AUDIO_PATH = "/home/pi/fireplace/data/audio_files"
 AUDIO_FORMATS = [".mp3", ".wav"]
 MAX_TIME = 3600
 MUSIC_END = pygame.USEREVENT + 1
