@@ -84,13 +84,13 @@ The colours represent the following:
 | Black   |  Ground | |
 | Red   |  5V. It could be powered using the Pi's USB port directly on the block connector positioned in row 19. | 
 | Orange   |  3.3V  |  |
-| Light   | Green: LED data at 3.3V | 12  |
+| Light  Green| LED data at 3.3V | 12  |
 | Lilac   |  LED data at 5V | |
 | Salmon   |  CLK signal for the rotary encoder | 23| 
 | Brown   |  DT signal for the rotary encoder |  8 |
 | Purple   |  LRC signal for amplifier | 19 |
 | Blue   |  BLCK signal for amplifier | 18 |
-| Dark   | Green: DIN signal for amplifier | 21 |
+| Dark Green  | DIN signal for amplifier | 21 |
 
 
 The Raspberry Pi is not directly soldered to the board. Instead, it has male header pins that are plugged into the female headers that are soldered to the board. This makes it easy to replace the Pi if needed or use it for other projects.

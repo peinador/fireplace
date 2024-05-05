@@ -4,8 +4,9 @@ import board
 import neopixel
 import numpy as np
 
+from fireplace.lights.led_comms import show_colors
 from fireplace.lights.noise import load_noise, noise_files_dir, quadratic_mask
-from fireplace.lights.utils import ColorMap, hex_to_rgb, show_colors
+from fireplace.lights.utils import ColorMap, hex_to_rgb
 
 # https://coolors.co/260c02-542c0b-802c08-be320b-f48405-ffa632
 HEX_PALETTE = [

@@ -10,7 +10,7 @@ noise_files_dir = Path(__file__).resolve().parents[2] / "data" / "perlin_noise"
 
 
 def quadratic_mask(size, initial_value, final_value):
-    """filter of the form a*y**2"""
+    """Filter of the form a*y**2"""
     a = (final_value - initial_value) / (size[1] ** 2)
     sign = final_value > initial_value
     values = [initial_value + sign * a * (y**2) for y in range(size[1])]
@@ -36,6 +36,8 @@ class PerlinNoise:
     def generate_perlin_noise_2d(
         self, cell_size: tuple[int, int], pixel_offset: tuple[int, int] = (0, 0)
     ):
+        # based on https://github.com/pvigier/perlin-numpy
+
         # number of periods the fit in the shape
         periods: list[float, float] = [
             shape / cell_length for shape, cell_length in zip(self.shape, cell_size)

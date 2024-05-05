@@ -11,8 +11,9 @@ import pygame
 import RPi.GPIO as GPIO
 
 from fireplace.audio.audio_tools import *
+from fireplace.lights.led_comms import show_colors
 from fireplace.lights.noise import load_noise, noise_files_dir, quadratic_mask
-from fireplace.lights.utils import ColorMap, hex_to_rgb, show_colors
+from fireplace.lights.utils import ColorMap, hex_to_rgb
 from fireplace.rotary_encoder.rotary import Counter, create_encoder_callback
 
 # logging
