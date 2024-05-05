@@ -1,6 +1,6 @@
-# fireplace 🔥
+# Fireplace 🔥
 
-Who doesn't like the soft flickering light and crackling sound of a fireplace? The fire brigade and my landlord.
+Who doesn't like the soft flickering light and crackling sounds of a fireplace? The fire brigade and my landlord.
 
 Fireplace is a Python package to run a fireplace animation in a Raspberry Pi Zero W2.
 It displays a flame animation on an 8x8 ws2812 LED (neopixel) display.
@@ -14,7 +14,7 @@ To install the package run:
 ```
 pip install -e .
 ```
-Before running the animations two things need to be done:
+Before running the animations a couple of things need to be done:
 1. Add audio files (MP3 or WAV) in `data/audio_files/`. You might need to create the directory if it does not exist. A collection of free fireplace sounds can be found [here](https://www.freetousesounds.com/free-fireplace-sound-effects/).
 2. Generate the noise image files by running `python fireplace/lights/generate_noise_files`. This creates a series of numpy files in `data/perlin_noise`.
 3. Make sure that the audio output is configured as I2S; following the instructions in reference [1].
@@ -51,12 +51,12 @@ and adding the following line
 changing the directories accordingly. Make sure that the logs directory exists by doing `mkdir logs` where appropriate.
 
 ## Development
-The [tests folder](/tests) includes scripts to independently test each of the simulation components: LEDs, audio and the rotary encoder readout. 
+The [tests folder](/tests) includes scripts to independently test each of the simulation components: LEDs, audio and the rotary encoder readout. Note that some of the dependencies of the module can only be installed on a Raspberry Pi, so do not expect to be able to run the test scripts on your system.
 
-The LED animation is created using Perlin noise. The process is explained in [this notebook](/docs/noise.ipynb).
+The LED animation is created using Perlin noise. The process is explained in [this notebook](/docs/noise.ipynb). This notebook can run without the Raspberry Pi dependencies.
 
 To help during development I wrote `send_files.sh`, which sends the contents of the package to the Raspberry Pi (except for the `.git` directory) over the SSH connection.
-This avoids having to push and pull for every change.
+This avoids having to push and pull for every change. The script uses the default ssh credential for the raspberry pi. You will need to update them with your pi's name and user.
 
 To copy the code to the Raspberry Pi using ssh use:
 ```bash
