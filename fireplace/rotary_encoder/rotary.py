@@ -15,8 +15,6 @@ class Counter:
         callbacks: List[Callable[[float], None]] = [],
     ):
         self.value = value if value is not None else 0
-        self.CLK_Last = GPIO.HIGH
-        self.dtLastState = GPIO.HIGH
         self.step = step
         self.range = range
         self.callbacks = callbacks
@@ -42,9 +40,10 @@ def create_encoder_callback(
     CLK_PIN=23,
     DT_PIN=8,
     logger: Optional[logging.Logger] = None,
-    debounce_ms: float = 2.0,
+    debounce_ms: float = 5.0,
 ):
     last_trigger_time = [0.0]  # Use list to allow mutation in closure
+    last_clk = [GPIO.input(CLK_PIN)]  # Track last CLK state
 
     def encoder_callback(channel):
         # Non-blocking debounce: ignore triggers within debounce window
@@ -53,21 +52,20 @@ def create_encoder_callback(
             return
         last_trigger_time[0] = current_time
 
-        DT_State = GPIO.input(DT_PIN)
         CLK_State = GPIO.input(CLK_PIN)
+        DT_State = GPIO.input(DT_PIN)
 
-        if CLK_State != DT_State:
-            counter.up()
-        elif DT_State != counter.dtLastState:
-            counter.down()
-        if logger is None:
-            print("counter:", counter)
-        else:
-            logger.info(
-                f"counter: {counter.value}   CLK_State {CLK_State}  CLK_last {counter.CLK_Last}  DT_State: {DT_State}  DT_last: {counter.dtLastState} "
-            )
+        # Only act on CLK falling edge (HIGH -> LOW transition)
+        if last_clk[0] == GPIO.HIGH and CLK_State == GPIO.LOW:
+            # Direction is determined by DT state at the moment of CLK falling edge
+            if DT_State == GPIO.HIGH:
+                counter.up()
+            else:
+                counter.down()
 
-        counter.CLK_Last = CLK_State
-        counter.dtLastState = DT_State
+            if logger is not None:
+                logger.info(f"counter: {counter.value}")
+
+        last_clk[0] = CLK_State
 
     return encoder_callback

@@ -10,6 +10,60 @@ logger = getLogger(__name__)
 AUDIO_FORMATS = [".mp3", ".wav"]
 
 
+def detect_i2s_device() -> str:
+    """
+    Auto-detect the I2S audio device.
+    Returns the first non-HDMI hardware device found, or 'default' as fallback.
+    """
+    try:
+        result = subprocess.run(
+            ["aplay", "-l"],
+            capture_output=True,
+            text=True,
+            timeout=5,
+        )
+        if result.returncode != 0:
+            return "default"
+
+        # Parse aplay -l output to find I2S device
+        # Example: "card 1: sndrpigooglevoi [snd_rpi_googlevoicehat_soundcar], device 0: ..."
+        for line in result.stdout.split("\n"):
+            if line.startswith("card "):
+                # Skip HDMI devices
+                if "hdmi" in line.lower() or "vc4" in line.lower():
+                    continue
+                # Extract card name
+                # Format: "card N: NAME [DESCRIPTION], device M: ..."
+                parts = line.split(":")
+                if len(parts) >= 2:
+                    card_part = parts[0]  # "card N"
+                    name_part = parts[1].split("[")[0].strip()  # "NAME"
+                    card_num = card_part.replace("card ", "").strip()
+                    device = f"plughw:CARD={name_part},DEV=0"
+                    logger.info(f"Auto-detected I2S audio device: {device}")
+                    return device
+
+        return "default"
+    except Exception as e:
+        logger.warning(f"Failed to auto-detect audio device: {e}")
+        return "default"
+
+
+def get_alsa_device() -> str:
+    """
+    Get the ALSA device to use for audio playback.
+    Uses ALSA_DEVICE env var if set, otherwise auto-detects.
+    """
+    env_device = os.environ.get("ALSA_DEVICE")
+    if env_device:
+        logger.info(f"Using ALSA device from environment: {env_device}")
+        return env_device
+
+    return detect_i2s_device()
+
+
+
+
 def is_audio_file(path: str) -> bool:
     extension = os.path.splitext(path)[1].lower()
     return extension in AUDIO_FORMATS
@@ -52,6 +106,9 @@ class AudioPlayer:
         self._volume = 50  # 0-100
         self._monitor_thread: Optional[threading.Thread] = None
         self._stopping = False
+        self._current_filepath: Optional[str] = None
+        # Auto-detect ALSA device on first instantiation
+        self._alsa_device = get_alsa_device()
 
     def play(self, filepath: str) -> None:
         """Play an audio file."""
@@ -60,20 +117,40 @@ class AudioPlayer:
         ext = os.path.splitext(filepath)[1].lower()
         logger.info(f"Now playing: {filepath}")
 
+        if not os.path.exists(filepath):
+            logger.error(f"Audio file not found: {filepath}")
+            return
+
+        # Calculate volume factor (mpg123 uses 0-32768, we scale from 0-100)
+        volume_factor = int((self._volume / 100) * 32768)
+        logger.info(f"Playing with volume {self._volume}% (factor: {volume_factor})")
+
         if ext == ".mp3":
-            # mpg123: -q for quiet mode
-            cmd = ["mpg123", "-q", filepath]
+            # mpg123: -o alsa forces ALSA, -a specifies device, --no-control disables terminal
+            cmd = [
+                "mpg123",
+                "-o", "alsa",
+                "-a", self._alsa_device,
+                "--no-control",
+                "-f", str(volume_factor),
+                filepath,
+            ]
         elif ext == ".wav":
-            # aplay for WAV files
-            cmd = ["aplay", "-q", filepath]
+            # aplay for WAV files, specify device explicitly
+            cmd = ["aplay", "-q", "-D", self._alsa_device, filepath]
         else:
             logger.warning(f"Unsupported format: {ext}")
             return
 
+        self._current_filepath = filepath
+
         try:
             self._stopping = False
+            # Capture stderr to diagnose issues
             self._process = subprocess.Popen(
-                cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL
+                cmd,
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.PIPE,
             )
             # Start monitoring thread to detect when song ends
             self._monitor_thread = threading.Thread(
@@ -88,7 +165,18 @@ class AudioPlayer:
         """Monitor the subprocess and call callback when it ends."""
         if self._process is None:
             return
-        self._process.wait()
+
+        # Wait for process to finish and capture stderr
+        _, stderr = self._process.communicate()
+        exit_code = self._process.returncode
+
+        # Log any errors
+        if exit_code != 0:
+            stderr_text = stderr.decode() if stderr else ""
+            logger.warning(f"Audio player exited with code {exit_code}")
+            if stderr_text:
+                logger.warning(f"Audio player stderr: {stderr_text[:200]}")
+
         if not self._stopping and self._on_song_end:
             self._on_song_end()
 
@@ -105,24 +193,10 @@ class AudioPlayer:
 
     def set_volume(self, volume: int) -> None:
         """
-        Set the system volume (0-100).
-        Uses ALSA amixer to control the volume.
+        Set the playback volume (0-100).
+        Volume is applied via mpg123's -f flag on next play.
         """
         self._volume = max(0, min(100, volume))
-        try:
-            # Try common ALSA mixer controls
-            for control in ["PCM", "Master", "Speaker"]:
-                result = subprocess.run(
-                    ["amixer", "sset", control, f"{self._volume}%"],
-                    capture_output=True,
-                    text=True,
-                )
-                if result.returncode == 0:
-                    logger.debug(f"Volume set to {self._volume}% via {control}")
-                    return
-            logger.warning("Could not set volume via amixer")
-        except FileNotFoundError:
-            logger.warning("amixer not found, volume control unavailable")
 
     def is_playing(self) -> bool:
         """Check if audio is currently playing."""

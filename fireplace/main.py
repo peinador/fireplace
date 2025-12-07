@@ -78,7 +78,7 @@ AUDIO_PATH = "/home/pi/fireplace/data/audio_files"
 MAX_TIME = 3600
 
 # leds
-TARGET_FPS = 60  # Target frames per second
+TARGET_FPS = 32  # Target frames per second
 FRAME_TIME = 1.0 / TARGET_FPS  # Time per frame in seconds
 HEX_PALETTE = [
     "1f0900",
@@ -127,8 +127,8 @@ if __name__ == "__main__":
     audio_player = AudioPlayer(on_song_end=play_next_song)
 
     def set_volume(value):
-        """Set volume via the audio player (0-100 scaled to 0-50%)."""
-        audio_player.set_volume(int(value * 0.5))
+        """Set volume via the audio player (0-100)."""
+        audio_player.set_volume(int(value))
 
     # init encoder
     GPIO.setmode(GPIO.BCM)

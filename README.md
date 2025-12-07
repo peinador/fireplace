@@ -2,125 +2,256 @@
 
 Who doesn't like the soft flickering light and crackling sounds of a fireplace? The fire brigade and my landlord.
 
-Fireplace is a Python package to run a fireplace animation in a Raspberry Pi Zero W2.
-It displays a flame animation on an 8x8 ws2812 LED (neopixel) display.
+Fireplace is a Python package to run a fireplace animation in a Raspberry Pi Zero W.
+It displays a flame animation on an 8x8 WS2812 LED (NeoPixel) display.
 It also sends audio output to a speaker connected to the Pi (I2S encoding).
 Additionally, a rotary encoder provides control over the intensity of the LEDs and speaker volume.
 
 <img src="docs/demo_gif.gif" alt="GIF showing the end result" height="300"/>  <img src="docs/demo_gif_2.gif" alt="GIF showing the end result" height="300"/>
 
 ## Installation
-To install the package run:
-```bash
-# Using uv (recommended)
-uv sync
 
-# Or using pip
+### Prerequisites
+
+- Raspberry Pi Zero W (or Zero W2) with Raspberry Pi OS (Bookworm or later)
+- Hardware components connected (see [Wiring](#wiring) section)
+
+### Step 1: Configure I2S Audio
+
+Follow the [Adafruit MAX98357A I2S setup guide](https://learn.adafruit.com/adafruit-max98357-i2s-class-d-mono-amp/raspberry-pi-usage) to configure I2S audio:
+
+```bash
+# Install required packages
+sudo apt install -y wget python3-venv
+
+# Create and activate virtual environment for the installer
+python3 -m venv ~/i2s-installer --system-site-packages
+source ~/i2s-installer/bin/activate
+
+# Install Adafruit shell helper and run I2S installer
+pip3 install adafruit-python-shell
+wget https://github.com/adafruit/Raspberry-Pi-Installer-Scripts/raw/main/i2samp.py
+sudo -E env PATH=$PATH python3 i2samp.py
+
+# Deactivate installer venv
+deactivate
+```
+
+**Important:** You must reboot **twice** after running the installer:
+1. First reboot enables the I2S hardware
+2. Second reboot (after testing audio) enables volume control in alsamixer
+
+After the second reboot, test audio:
+```bash
+speaker-test -c2 -t wav
+```
+
+### Step 2: Install system packages
+
+```bash
+sudo apt-get update
+sudo apt-get install -y \
+    python3-numpy \
+    python3-rpi-lgpio \
+    mpg123
+```
+
+> **Note:** On Raspberry Pi OS Bookworm/Trixie, use `python3-rpi-lgpio` (not `python3-rpi.gpio`). The older library doesn't work with the new kernel GPIO subsystem.
+
+### Step 3: Clone and set up the project
+
+```bash
+cd ~
+git clone https://github.com/peinador/fireplace.git
+cd fireplace
+
+# Create venv with access to system packages (for numpy, GPIO)
+python3 -m venv --system-site-packages .venv
+source .venv/bin/activate
+
+# Install Adafruit libraries for NeoPixel control
+pip install rpi_ws281x adafruit-circuitpython-neopixel adafruit-blinka
+
+# Install the fireplace package
 pip install -e .
 ```
 
-Before running the animations a couple of things need to be done:
-1. Add audio files (MP3 or WAV) in `data/audio_files/`. You might need to create the directory if it does not exist. A collection of free fireplace sounds can be found [here](https://www.freetousesounds.com/free-fireplace-sound-effects/).
-2. Generate the noise image files by running `python fireplace/lights/generate_noise_files`. This creates a series of numpy files in `data/perlin_noise`.
-3. Make sure that the audio output is configured as I2S; following the instructions in reference [1].
-4. Raspberry Pi specific installs:
-    ```bash
-    # Audio player for MP3 files
-    sudo apt-get update
-    sudo apt-get install mpg123
+### Step 4: Add audio files
 
-    # From reference [2] below - libraries to control neopixels
-    sudo pip3 install rpi_ws281x adafruit-circuitpython-neopixel
-    sudo python3 -m pip install --force-reinstall adafruit-blinka
+Add MP3 or WAV audio files to `data/audio_files/`. Free fireplace sounds: [freetousesounds.com](https://www.freetousesounds.com/free-fireplace-sound-effects/)
 
-    # From reference [3] below - library to read GPIO pins
-    sudo apt-get install python3-rpi.gpio
-    ```
+```bash
+mkdir -p data/audio_files
+# Copy your audio files here
+```
+
+### Step 5: Generate noise files
+
+Generate the Perlin noise files for the flame animation:
+
+```bash
+python fireplace/lights/generate_noise_files.py
+```
+
+### Step 6: Test audio
+
+The script auto-detects your I2S audio device. Test that audio works:
+
+```bash
+# Test audio (the script will auto-detect the device)
+sudo .venv/bin/python fireplace/main.py
+```
+
+If audio doesn't work, you can manually specify the device:
+
+```bash
+# List available audio devices
+aplay -l
+
+# Find your I2S device (not HDMI) and test it
+sudo mpg123 -o alsa -a "plughw:CARD=<your_card_name>,DEV=0" data/audio_files/your_file.mp3
+
+# Then set it for the script
+export ALSA_DEVICE="plughw:CARD=<your_card_name>,DEV=0"
+```
 
 ## Usage
-To run the main animation file run:
-```
+
+Run the fireplace simulation:
+
+```bash
+cd ~/fireplace
+source .venv/bin/activate
 sudo python fireplace/main.py
 ```
 
-The launcher file launcher.sh can be used to set up a crontab automatic execution upon booting. 
-This can be done by opening crontab
+> **Note:** `sudo` is required for NeoPixel DMA access to `/dev/mem`.
+
+### Auto-start on boot
+
+1. Create a logs directory:
+   ```bash
+   mkdir -p ~/logs
+   ```
+
+2. Add to crontab:
+   ```bash
+   crontab -e
+   ```
+   
+   Add this line:
+   ```
+   @reboot sh /home/pi/fireplace/launcher.sh >/home/pi/logs/cronlog 2>&1
+   ```
+
+## Configuration
+
+### Audio Device
+
+The script **auto-detects** your I2S audio device by scanning for non-HDMI audio hardware.
+
+If auto-detection doesn't work, set the `ALSA_DEVICE` environment variable:
+
+```bash
+# Find your device
+aplay -l
+# Look for the non-HDMI card, e.g., "card 1: sndrpigooglevoi"
+
+# Set the device
+export ALSA_DEVICE="plughw:CARD=sndrpigooglevoi,DEV=0"
+sudo -E python fireplace/main.py
 ```
-crontab -e
-```
-and adding the following line
-```
-@reboot sh /home/pi/fireplace/launcher.sh >/home/pi/logs/cronlog 2>&1
-```
-changing the directories accordingly. Make sure that the logs directory exists by doing `mkdir logs` where appropriate.
+
+For permanent configuration, edit `launcher.sh` and uncomment the `ALSA_DEVICE` line.
+
+### Volume
+
+If audio is too quiet, check the GAIN pin on the MAX98357A:
+- Connected to GND: 3dB (quietest)
+- Floating/unconnected: 9dB (default)
+- Connected to VIN: 15dB (loudest)
+
+## Troubleshooting
+
+### No audio output
+
+1. Verify I2S is configured: `aplay -l` should show your I2S device
+2. Test audio directly: `sudo mpg123 -o alsa -a softvol <file.mp3>`
+3. Try different ALSA devices from `aplay -L`
+4. Check that you rebooted **twice** after I2S installer
+
+### Audio works from command line but not from script
+
+- The script specifies the ALSA device explicitly
+- Set `ALSA_DEVICE` environment variable to match your working device
+
+### GPIO errors ("Failed to add edge detection")
+
+- Use `python3-rpi-lgpio`, not `python3-rpi.gpio`
+- Reboot after changing GPIO libraries
+
+### LEDs not working / Permission denied
+
+- Must run with `sudo` for NeoPixel DMA access
+- Check wiring (data pin is GPIO 12)
+
+### NeoPixels work but audio doesn't
+
+- Audio must be configured for root user
+- The Adafruit I2S installer configures `/etc/asound.conf` which works for all users
 
 ## Development
-The [tests folder](/tests) includes scripts to independently test each of the simulation components: LEDs, audio and the rotary encoder readout. Note that some of the dependencies of the module can only be installed on a Raspberry Pi, so do not expect to be able to run the test scripts on your system.
 
-The LED animation is created using Perlin noise. The process is explained in [this notebook](/docs/noise.ipynb). This notebook can run without the Raspberry Pi dependencies.
+The [tests folder](/tests) includes scripts to independently test each component:
+- `tests/leds_test.py` - Test LED matrix
+- `tests/audio_test.py` - Test audio playback  
+- `tests/rotary_test.py` - Test rotary encoder
 
-To help during development I wrote `send_files.sh`, which sends the contents of the package to the Raspberry Pi (except for the `.git` directory) over the SSH connection.
-This avoids having to push and pull for every change. The script uses the default ssh credential for the raspberry pi. You will need to update them with your pi's name and user.
+The LED animation uses Perlin noise. The algorithm is explained in [this notebook](/docs/noise.ipynb).
 
-To copy the code to the Raspberry Pi using ssh use:
+### Syncing code to the Pi
+
 ```bash
+# Update SSH credentials in send_files.sh first
 source send_files.sh
 ```
+
+## Hardware
+
 ### Component List
-- Raspberry Pi Zero W2 (+32GB microSD card)
+
+- Raspberry Pi Zero W or W2 (+32GB microSD card)
 - MAX98357A I2S 3W amplifier
-- 3W 4 $\Omega$ speaker
-- 20 mm Rotary encoder (without breakout board and resistors)
-- 5V to 3.3V 4-way bidirectional level shifter (might also work without)
-- 8x8 WS2812 LED (Neopixel) matrix
-- On-On Miniature Toggle Switch
-- USB-C Power connector mount
+- 3W 4Ω speaker
+- 20mm rotary encoder (without breakout board)
+- 5V to 3.3V 4-way bidirectional level shifter
+- 8x8 WS2812 LED (NeoPixel) matrix
+- On-On miniature toggle switch
+- USB-C power connector mount
 - 5cm x 7cm perforated PCB
-- 159XXSSBK ABS enclosure 121 x 94 x 34
-- Wire, block sockets, header sockets, soldering supplies.
-- white card and wrapping paper used as a light diffuser
+- 159XXSSBK ABS enclosure (121 x 94 x 34mm)
+- Wire, sockets, headers, soldering supplies
+- White card and wrapping paper (light diffuser)
+
 ### Wiring
-The wiring is represented in the following diagram:
+
 ![Wiring diagram for the project](docs/board_design.jpg)
-The arrows on the diagram indicate the use of wire on the top side of the board, as opposed to solder connections.
 
-The colours represent the following:
+| Colour | Description | GPIO |
+|--------|-------------|------|
+| Black | Ground | |
+| Red | 5V | |
+| Orange | 3.3V | |
+| Light Green | LED data (3.3V side) | 12 |
+| Lilac | LED data (5V side) | |
+| Salmon | Rotary encoder CLK | 23 |
+| Brown | Rotary encoder DT | 8 |
+| Purple | I2S LRC (amplifier) | 19 |
+| Blue | I2S BCLK (amplifier) | 18 |
+| Dark Green | I2S DIN (amplifier) | 21 |
 
-| Colour | Description| GPIO | 
-| ---------- | ------------ | ------ | 
-| Black   |  Ground | |
-| Red   |  5V. It could be powered using the Pi's USB port directly on the block connector positioned in row 19. | 
-| Orange   |  3.3V  |  |
-| Light  Green| LED data at 3.3V | 12  |
-| Lilac   |  LED data at 5V | |
-| Salmon   |  CLK signal for the rotary encoder | 23| 
-| Brown   |  DT signal for the rotary encoder |  8 |
-| Purple   |  LRC signal for amplifier | 19 |
-| Blue   |  BLCK signal for amplifier | 18 |
-| Dark Green  | DIN signal for amplifier | 21 |
+## References
 
-
-The Raspberry Pi is not directly soldered to the board. Instead, it has male header pins that are plugged into the female headers that are soldered to the board. This makes it easy to replace the Pi if needed or use it for other projects.
-
-
-## Room for improvement
-Some things could be improved, although there are no plans to do it:
-- It takes a minute or two to start the simulation after powering the pi. This is due to the time it takes to boot the system
-- The simulation is slow in the first minutes
-- Better control over the iteration tim
-- Better configurations management.
-- The speaker makes a popping noise when booting the Pi. This is probably due to the I2S configuration, and the Adafruit article linked below has a troubleshooting appendix. However, it was not very annoying and it was useful for knowing when the pi had booted.
-- The enclosure is rather tight. It would have been better to have an enclosure that was taller (bigger on its smaller axis). 
-- Better LED simulation
-    - Make it sound-reactive
-    - Add additional effects, like additional flickering
-- The rotary encoder misses some ticks. There was a tradeoff between de-bounding and missing ticks. Perhaps using additional pull-up resistors could have worked better than using the ones installed on the Pi.
-
-The initial idea for this project was to also have a small water vaporiser (aka atomiser) connected to the Pi. The water vapour would create the illusion of smoke. However, the feature was discarded, partly because it would have significantly increased the complexity of the build in terms of dealing with waterproofing the component enclosure.
-
-## References 
-[1] [MAX98357A documentation](https://web.archive.org/web/20240106093728/https://learn.adafruit.com/adafruit-max98357-i2s-class-d-mono-amp)
-
-[2] [Adafruit NeoPixels on Raspberry Pi](https://web.archive.org/web/20240215090728/https://learn.adafruit.com/neopixels-on-raspberry-pi/overview)
-
-[3] [Rotary encoders tutorial](https://newbiely.com/tutorials/raspberry-pi/raspberry-pi-rotary-encoder)
+1. [MAX98357A I2S Amplifier Setup](https://learn.adafruit.com/adafruit-max98357-i2s-class-d-mono-amp/raspberry-pi-usage)
+2. [Adafruit NeoPixels on Raspberry Pi](https://learn.adafruit.com/neopixels-on-raspberry-pi/overview)
+3. [Rotary Encoder Tutorial](https://newbiely.com/tutorials/raspberry-pi/raspberry-pi-rotary-encoder)
