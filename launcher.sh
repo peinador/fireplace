@@ -1,10 +1,16 @@
 #!/bin/sh
 # launcher.sh
-# navigate to home directory, then to this directory, then execute python script, then back home
+# Start the fireplace simulation on boot
 
-cd /
-cd home/pi/fireplace/fireplace
+cd /home/pi/fireplace
 export TERM=xterm
+
+# ALSA device for audio output (default: softvol from Adafruit I2S installer)
+# Uncomment and modify if your device is different:
+# export ALSA_DEVICE="softvol"
+
+# Wait for system to fully boot (audio, GPIO, etc.)
 sleep 40
-sudo python main.py
-cd /
+
+# Run with sudo (required for NeoPixel DMA access)
+sudo -E .venv/bin/python fireplace/main.py

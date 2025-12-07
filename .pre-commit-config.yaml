@@ -5,37 +5,21 @@ default_stages: [commit, push]
 
 repos:
   - repo: https://github.com/pre-commit/pre-commit-hooks
-    rev: v2.5.0
+    rev: v4.5.0
     hooks:
       - id: check-yaml
       - id: end-of-file-fixer
         exclude: LICENSE
+      - id: trailing-whitespace
 
   - repo: https://github.com/kynan/nbstripout
-    rev: 0.3.9
+    rev: 0.6.1
     hooks:
-    - id: nbstripout
+      - id: nbstripout
 
-  - repo: local
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.8.0
     hooks:
-      - id: isort
-        name: isort
-        entry: poetry run isort --settings-path pyproject.toml
-        types: [python]
-        language: system
-  
-  - repo: local
-    hooks:
-      - id: flake8
-        name: flake8
-        entry: poetry run flake8 --config flake8.cfg
-        types: [python]
-        language: system
-
-  - repo: local
-    hooks:
-      - id: black
-        name: black
-        entry: poetry run black --config pyproject.toml
-        types: [python]
-        language: system
+      - id: ruff
+        args: [--fix]
+      - id: ruff-format
