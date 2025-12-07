@@ -49,6 +49,7 @@ class FireplaceHandler(BaseHTTPRequestHandler):
                 {
                     "running": fireplace.is_running,
                     "remaining_seconds": fireplace.remaining_seconds,
+                    "volume": fireplace.volume,
                 },
             )
         elif self.path == "/health":
@@ -62,6 +63,8 @@ class FireplaceHandler(BaseHTTPRequestHandler):
             self._handle_start()
         elif self.path == "/stop":
             self._handle_stop()
+        elif self.path == "/volume":
+            self._handle_volume()
         else:
             self._send_json_response(404, {"error": "Not found"})
 
@@ -103,6 +106,36 @@ class FireplaceHandler(BaseHTTPRequestHandler):
             return
         self._send_json_response(200, {"message": "Fireplace stopped"})
 
+    def _handle_volume(self):
+        """Handle POST /volume request."""
+        try:
+            body = self._read_json_body()
+            volume = body.get("volume")
+
+            if volume is None:
+                self._send_json_response(400, {"error": "volume is required"})
+                return
+            if not isinstance(volume, (int, float)):
+                self._send_json_response(400, {"error": "volume must be a number"})
+                return
+            if volume < 0 or volume > 100:
+                self._send_json_response(
+                    400, {"error": "volume must be between 0 and 100"}
+                )
+                return
+
+            success = fireplace.set_volume(int(volume))
+            if not success:
+                self._send_json_response(409, {"error": "Fireplace is not running"})
+                return
+
+            self._send_json_response(
+                200, {"message": f"Volume set to {int(volume)}%", "volume": int(volume)}
+            )
+
+        except json.JSONDecodeError:
+            self._send_json_response(400, {"error": "Invalid JSON"})
+
     def log_message(self, format: str, *args):
         """Override to use our logger."""
         logger.info("%s - %s", self.address_string(), format % args)
@@ -113,7 +146,9 @@ def run_server(host: str = "0.0.0.0", port: int = 8000):
     server_address = (host, port)
     httpd = HTTPServer(server_address, FireplaceHandler)
     logger.info(f"Fireplace API server running on http://{host}:{port}")
-    logger.info("Endpoints: POST /start, POST /stop, GET /status, GET /health")
+    logger.info(
+        "Endpoints: POST /start, POST /stop, POST /volume, GET /status, GET /health"
+    )
     try:
         httpd.serve_forever()
     except KeyboardInterrupt:

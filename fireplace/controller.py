@@ -121,6 +121,27 @@ class Fireplace:
         remaining = self._duration_seconds - elapsed
         return max(0, int(remaining))
 
+    @property
+    def volume(self) -> int:
+        """Get current volume (0-100)."""
+        if self._counter is not None:
+            return int(self._counter.value)
+        return 80  # Default
+
+    def set_volume(self, value: int) -> bool:
+        """
+        Set the volume (0-100). Also affects LED brightness.
+
+        Returns:
+            True if set successfully, False if not running.
+        """
+        if not self._running or self._counter is None:
+            return False
+        value = max(0, min(100, value))
+        self._counter.value = value
+        self._counter.run_callbacks()
+        return True
+
     def start(self, duration_minutes: float = 60) -> bool:
         """
         Start the fireplace animation.
