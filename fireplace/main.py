@@ -1,17 +1,15 @@
 import logging
-import os
+import signal
 import sys
 import threading
 import time
-from itertools import cycle
 
 import board
 import neopixel
 import numpy as np
-import pygame
 import RPi.GPIO as GPIO
 
-from fireplace.audio.audio_tools import *
+from fireplace.audio.audio_tools import AudioPlayer, get_audio_files
 from fireplace.lights.led_comms import show_colors
 from fireplace.lights.noise import load_noise, noise_files_dir, quadratic_mask
 from fireplace.lights.utils import ColorMap, hex_to_rgb
@@ -78,8 +76,6 @@ dtLastState = GPIO.HIGH
 # audio
 AUDIO_PATH = "/home/pi/fireplace/data/audio_files"
 MAX_TIME = 3600
-MUSIC_END = pygame.USEREVENT + 1
-set_volume = lambda value: pygame.mixer.music.set_volume(value / 100 * 0.5)
 
 # leds
 TARGET_FPS = 60  # Target frames per second
@@ -110,6 +106,30 @@ def set_brightness(value):
 
 
 if __name__ == "__main__":
+    # Flag for graceful shutdown
+    stop = False
+
+    def signal_handler(signum, frame):
+        global stop
+        stop = True
+
+    signal.signal(signal.SIGINT, signal_handler)
+    signal.signal(signal.SIGTERM, signal_handler)
+
+    # init audio (before encoder so we can reference audio_player in callbacks)
+    audio_files = get_audio_files(audio_path=AUDIO_PATH)
+
+    def play_next_song():
+        """Callback to play the next song when current one ends."""
+        logger.info("Song Finished")
+        audio_player.play(next(audio_files))
+
+    audio_player = AudioPlayer(on_song_end=play_next_song)
+
+    def set_volume(value):
+        """Set volume via the audio player (0-100 scaled to 0-50%)."""
+        audio_player.set_volume(int(value * 0.5))
+
     # init encoder
     GPIO.setmode(GPIO.BCM)
     GPIO.setup(CLK_PIN, GPIO.IN, pull_up_down=GPIO.PUD_UP)
@@ -120,11 +140,7 @@ if __name__ == "__main__":
     encoder_callback = create_encoder_callback(counter, logger=logger)
     GPIO.add_event_detect(CLK_PIN, GPIO.BOTH, callback=encoder_callback)
 
-    # init audio
-    audio_files = get_audio_files(audio_path=AUDIO_PATH)
-    pygame.init()
-    pygame.mixer.init()
-    pygame.mixer.music.set_endevent(MUSIC_END)
+    # Set initial volume
     set_volume(counter.value)
 
     # init leds
@@ -137,23 +153,12 @@ if __name__ == "__main__":
     step = 0
 
     try:
-        play_next(audio_files)
+        # Start playing first song
+        audio_player.play(next(audio_files))
+
         start = time.time()
-        stop = False
         frame_start = time.time()
         while (time.time() - start < MAX_TIME) and not stop:
-            for event in pygame.event.get():
-                # A event will be hosted
-                # after the end of every song
-                if event.type == MUSIC_END:
-                    logger.info("Song Finished")
-                    play_next(audio_files)
-
-                # Check user input
-                elif event.type == pygame.KEYDOWN:
-                    if event.key == pygame.K_RETURN or event.key == pygame.K_q:
-                        stop = True
-
             if step < max_step:
                 screen = noise[step : (step + window)]
             else:
@@ -180,6 +185,6 @@ if __name__ == "__main__":
         pixels.fill((0, 0, 0))
         pixels.show()
         print("Interrupted; Pixels Reset")
-        pygame.quit()
+        audio_player.cleanup()
         GPIO.remove_event_detect(CLK_PIN)
         GPIO.cleanup()
