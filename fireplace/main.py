@@ -135,8 +135,7 @@ if __name__ == "__main__":
         logger.critical(f"Encountered error {e}")
         time.sleep(10)
     finally:
-        for i in range(num_pixels):
-            pixels[i] = (0, 0, 0)
+        pixels.fill((0, 0, 0))
         pixels.show()
         print("Interrupted; Pixels Reset")
         pygame.quit()

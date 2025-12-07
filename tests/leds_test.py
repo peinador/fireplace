@@ -80,8 +80,7 @@ if __name__ == "__main__":
 
     except KeyboardInterrupt:
         pr.disable()
-        for i in range(num_pixels):
-            pixels[i] = (0, 0, 0)
+        pixels.fill((0, 0, 0))
         pixels.show()
         print("Interrupted; Pixels Reset")
         stats = Stats(pr)
