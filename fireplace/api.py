@@ -73,6 +73,7 @@ class FireplaceHandler(BaseHTTPRequestHandler):
         try:
             body = self._read_json_body()
             duration_minutes = body.get("duration_minutes", 30)
+            fade_out_minutes = body.get("fade_out_minutes", 10)
 
             # Validate duration
             if not isinstance(duration_minutes, (int, float)) or duration_minutes <= 0:
@@ -86,13 +87,26 @@ class FireplaceHandler(BaseHTTPRequestHandler):
                 )
                 return
 
-            success = fireplace.start(duration_minutes=duration_minutes)
-            if not success:
-                self._send_json_response(409, {"error": "Fireplace is already running"})
+            # Validate fade_out
+            if not isinstance(fade_out_minutes, (int, float)) or fade_out_minutes < 0:
+                self._send_json_response(
+                    400, {"error": "fade_out_minutes must be a non-negative number"}
+                )
                 return
 
+            was_running = fireplace.is_running
+            fireplace.start(
+                duration_minutes=duration_minutes,
+                fade_out_minutes=fade_out_minutes,
+            )
+
+            action = "updated" if was_running else "started"
             self._send_json_response(
-                200, {"message": f"Fireplace started for {duration_minutes} minutes"}
+                200,
+                {
+                    "message": f"Fireplace {action} for {duration_minutes} minutes",
+                    "fade_out_minutes": fade_out_minutes,
+                },
             )
 
         except json.JSONDecodeError:

@@ -3,8 +3,9 @@
 Standalone entry point for running the fireplace directly.
 
 Usage:
-    sudo python fireplace/main.py                    # Run for 60 minutes (default)
-    sudo python fireplace/main.py --duration 30     # Run for 30 minutes
+    sudo python fireplace/main.py                        # Run for 60 minutes (default)
+    sudo python fireplace/main.py --duration 30          # Run for 30 minutes
+    sudo python fireplace/main.py --fade-out 5           # Fade out over last 5 minutes
 """
 
 import argparse
@@ -34,6 +35,13 @@ def main():
         default=60,
         help="Duration to run the fireplace in minutes",
     )
+    parser.add_argument(
+        "--fade-out",
+        type=float,
+        default=10,
+        dest="fade_out",
+        help="Fade out volume/brightness over the last N minutes",
+    )
     args = parser.parse_args()
 
     fireplace = Fireplace()
@@ -45,8 +53,11 @@ def main():
     signal.signal(signal.SIGINT, signal_handler)
     signal.signal(signal.SIGTERM, signal_handler)
 
-    logger.info(f"Starting fireplace for {args.duration} minutes")
-    fireplace.start(duration_minutes=args.duration)
+    logger.info(
+        f"Starting fireplace for {args.duration} minutes "
+        f"(fade-out: last {args.fade_out} minutes)"
+    )
+    fireplace.start(duration_minutes=args.duration, fade_out_minutes=args.fade_out)
 
     # Block until fireplace stops (either naturally or via signal)
     fireplace.wait()
