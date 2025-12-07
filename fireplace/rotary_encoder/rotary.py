@@ -38,12 +38,23 @@ class Counter:
 
 
 def create_encoder_callback(
-    counter: Counter, CLK_PIN=23, DT_PIN=8, logger: Optional[logging.Logger] = None
+    counter: Counter,
+    CLK_PIN=23,
+    DT_PIN=8,
+    logger: Optional[logging.Logger] = None,
+    debounce_ms: float = 2.0,
 ):
+    last_trigger_time = [0.0]  # Use list to allow mutation in closure
+
     def encoder_callback(channel):
+        # Non-blocking debounce: ignore triggers within debounce window
+        current_time = time.time() * 1000  # Convert to milliseconds
+        if current_time - last_trigger_time[0] < debounce_ms:
+            return
+        last_trigger_time[0] = current_time
+
         DT_State = GPIO.input(DT_PIN)
         CLK_State = GPIO.input(CLK_PIN)
-        time.sleep(0.002)  # debounce time
 
         if CLK_State != DT_State:
             counter.up()
@@ -57,6 +68,6 @@ def create_encoder_callback(
             )
 
         counter.CLK_Last = CLK_State
-        counter.dtLastState = DT_State  # remove if '#counter.dtLastState = DT_State ' line above uncommented
+        counter.dtLastState = DT_State
 
     return encoder_callback
