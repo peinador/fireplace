@@ -93,13 +93,13 @@ Generate the Perlin noise files for the flame animation:
 python fireplace/lights/generate_noise_files.py
 ```
 
-### Step 6: Test audio
+### Step 6: Test
 
-The script auto-detects your I2S audio device. Test that audio works:
+Test that everything works:
 
 ```bash
-# Test audio (the script will auto-detect the device)
-sudo .venv/bin/python fireplace/main.py
+# Test with direct execution (runs for 1 minute)
+sudo .venv/bin/python fireplace/main.py --duration 1
 ```
 
 If audio doesn't work, you can manually specify the device:
@@ -117,32 +117,83 @@ export ALSA_DEVICE="plughw:CARD=<your_card_name>,DEV=0"
 
 ## Usage
 
-Run the fireplace simulation:
+There are two ways to run the fireplace:
+
+### Option 1: Direct execution
+
+Run the fireplace directly from the command line:
 
 ```bash
 cd ~/fireplace
 source .venv/bin/activate
+
+# Run for 60 minutes (default)
 sudo python fireplace/main.py
+
+# Run for a specific duration
+sudo python fireplace/main.py --duration 30
 ```
 
 > **Note:** `sudo` is required for NeoPixel DMA access to `/dev/mem`.
 
+### Option 2: API server (recommended)
+
+Run the API server to control the fireplace remotely from your local network:
+
+```bash
+cd ~/fireplace
+source .venv/bin/activate
+sudo python fireplace/api.py
+```
+
+The server runs on port 8000 by default.
+
+#### API Endpoints
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| POST | `/start` | Start the fireplace |
+| POST | `/stop` | Stop the fireplace |
+| GET | `/status` | Get current status |
+| GET | `/health` | Health check |
+
+#### Examples
+
+```bash
+# Start the fireplace for 30 minutes
+curl -X POST http://<pi-ip>:8000/start \
+  -H "Content-Type: application/json" \
+  -d '{"duration_minutes": 30}'
+
+# Check status
+curl http://<pi-ip>:8000/status
+
+# Stop the fireplace
+curl -X POST http://<pi-ip>:8000/stop
+```
+
 ### Auto-start on boot
 
-1. Create a logs directory:
-   ```bash
-   mkdir -p ~/logs
-   ```
+To start the API server automatically when the Pi boots, run the install script:
 
-2. Add to crontab:
-   ```bash
-   crontab -e
-   ```
-   
-   Add this line:
-   ```
-   @reboot sh /home/pi/fireplace/launcher.sh >/home/pi/logs/cronlog 2>&1
-   ```
+```bash
+chmod +x install_service.sh
+./install_service.sh
+
+# Start the service now
+sudo systemctl start fireplace
+```
+
+After enabling, the API server will start automatically on boot and be available at `http://<pi-ip>:8000`.
+
+**Useful commands:**
+
+```bash
+sudo systemctl status fireplace   # Check status
+sudo systemctl restart fireplace  # Restart after code changes
+sudo systemctl stop fireplace     # Stop the service
+sudo journalctl -u fireplace -f   # View logs
+```
 
 ## Configuration
 
@@ -162,7 +213,7 @@ export ALSA_DEVICE="plughw:CARD=sndrpigooglevoi,DEV=0"
 sudo -E python fireplace/main.py
 ```
 
-For permanent configuration, edit `launcher.sh` and uncomment the `ALSA_DEVICE` line.
+For permanent configuration, edit `fireplace.service` and uncomment the `Environment=ALSA_DEVICE` line, then run `sudo systemctl daemon-reload && sudo systemctl restart fireplace`.
 
 ### Volume
 
@@ -170,6 +221,37 @@ If audio is too quiet, check the GAIN pin on the MAX98357A:
 - Connected to GND: 3dB (quietest)
 - Floating/unconnected: 9dB (default)
 - Connected to VIN: 15dB (loudest)
+
+### Read-only filesystem (recommended)
+
+To protect the SD card from corruption when power is cut unexpectedly, enable the read-only overlay filesystem:
+
+```bash
+sudo raspi-config
+# -> Performance Options -> Overlay File System -> Enable
+# -> Reboot when prompted
+```
+
+This mounts the SD card as read-only and uses RAM for any writes. The fireplace works normally since it doesn't need to write to disk during operation.
+
+**To make changes (update code, install packages):**
+
+```bash
+# 1. Disable overlay
+sudo raspi-config
+# -> Performance Options -> Overlay File System -> Disable
+# -> Reboot
+
+# 2. Make your changes
+cd ~/fireplace
+git pull
+pip install -e .
+
+# 3. Re-enable overlay
+sudo raspi-config
+# -> Performance Options -> Overlay File System -> Enable
+# -> Reboot
+```
 
 ## Troubleshooting
 
@@ -200,11 +282,18 @@ If audio is too quiet, check the GAIN pin on the MAX98357A:
 - Audio must be configured for root user
 - The Adafruit I2S installer configures `/etc/asound.conf` which works for all users
 
+### API server not accessible after boot
+
+- Check logs: `sudo journalctl -u fireplace -n 50`
+- Ensure the Pi has network connectivity
+- Verify the server started: `curl http://localhost:8000/health`
+- Check service status: `sudo systemctl status fireplace`
+
 ## Development
 
 The [tests folder](/tests) includes scripts to independently test each component:
 - `tests/leds_test.py` - Test LED matrix
-- `tests/audio_test.py` - Test audio playback  
+- `tests/audio_test.py` - Test audio playback
 - `tests/rotary_test.py` - Test rotary encoder
 
 The LED animation uses Perlin noise. The algorithm is explained in [this notebook](/docs/noise.ipynb).
