@@ -11,25 +11,29 @@ Additionally, a rotary encoder provides control over the intensity of the LEDs a
 
 ## Installation
 To install the package run:
-```
+```bash
+# Using uv (recommended)
+uv sync
+
+# Or using pip
 pip install -e .
 ```
+
 Before running the animations a couple of things need to be done:
 1. Add audio files (MP3 or WAV) in `data/audio_files/`. You might need to create the directory if it does not exist. A collection of free fireplace sounds can be found [here](https://www.freetousesounds.com/free-fireplace-sound-effects/).
 2. Generate the noise image files by running `python fireplace/lights/generate_noise_files`. This creates a series of numpy files in `data/perlin_noise`.
 3. Make sure that the audio output is configured as I2S; following the instructions in reference [1].
 4. Raspberry Pi specific installs:
     ```bash
-    # from reference [2] below
-    # libraries to control neopixels
+    # Audio player for MP3 files
+    sudo apt-get update
+    sudo apt-get install mpg123
+
+    # From reference [2] below - libraries to control neopixels
     sudo pip3 install rpi_ws281x adafruit-circuitpython-neopixel
     sudo python3 -m pip install --force-reinstall adafruit-blinka
-    ```
-    and
-    ```bash
-    # from reference [3] below
-    # library to read GPIO pins
-    sudo apt-get update
+
+    # From reference [3] below - library to read GPIO pins
     sudo apt-get install python3-rpi.gpio
     ```
 

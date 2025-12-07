@@ -20,15 +20,15 @@ repos:
     hooks:
       - id: isort
         name: isort
-        entry: poetry run isort --settings-path pyproject.toml
+        entry: uv run isort --settings-path pyproject.toml
         types: [python]
         language: system
-  
+
   - repo: local
     hooks:
       - id: flake8
         name: flake8
-        entry: poetry run flake8 --config flake8.cfg
+        entry: uv run flake8 --config flake8.cfg
         types: [python]
         language: system
 
@@ -36,6 +36,6 @@ repos:
     hooks:
       - id: black
         name: black
-        entry: poetry run black --config pyproject.toml
+        entry: uv run black --config pyproject.toml
         types: [python]
         language: system

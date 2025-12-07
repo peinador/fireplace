@@ -1,23 +1,17 @@
-# Poetry pyproject.toml: https://python-poetry.org/docs/pyproject/
 [build-system]
-requires = ["poetry_core>=1.0.0"]
-build-backend = "poetry.core.masonry.api"
+requires = ["hatchling"]
+build-backend = "hatchling.build"
 
-[tool.poetry]
+[project]
 name = "fireplace"
 version = "1.0.0"
-description = "Fireplace is a Python package to run a fireplace animation in a raspberry Pi Zero W2"
+description = "Fireplace is a Python package to run a fireplace animation in a Raspberry Pi Zero W2"
 readme = "README.md"
-authors = ["peinador"]
 license = "MIT"
-repository = "https://github.com/peinador/fireplace"
-homepage = "https://github.com/peinador/fireplace"
-
-# Keywords description https://python-poetry.org/docs/pyproject/#keywords
-keywords = []  #! Update me
-
-# Pypi classifiers: https://pypi.org/classifiers/
-classifiers = [  #! Update me
+requires-python = ">=3.9"
+authors = [{ name = "peinador" }]
+keywords = []
+classifiers = [
   "Development Status :: 3 - Alpha",
   "Intended Audience :: Developers",
   "Operating System :: OS Independent",
@@ -26,27 +20,29 @@ classifiers = [  #! Update me
   "Programming Language :: Python :: 3",
   "Programming Language :: Python :: 3.9",
 ]
+dependencies = [
+  "click>=8.0.0",
+  "numpy>=1.26.4",
+  "matplotlib>=3.8.3",
+]
 
+[project.urls]
+Homepage = "https://github.com/peinador/fireplace"
+Repository = "https://github.com/peinador/fireplace"
 
-[tool.poetry.dependencies]
-python = "^3.9"
-click = "^8.0.0"
-pygame = "^2.5.2"
-numpy = "^1.26.4"
-matplotlib = "^3.8.3"
-
-[tool.poetry.dev-dependencies]
-bandit = "^1.7.1"
-black = {version = "^23.9.1", allow-prereleases = true}
-darglint = "^1.8.1"
-flake8 = "^7.0.0"
-isort = {extras = ["colors"], version = "^5.10.1"}
-mypy = "^0.910"
-mypy-extensions = "^0.4.3"
-pre-commit = "^2.15.0"
-pylint = "^2.11.1"
-pytest = "^6.2.5"
-
+[dependency-groups]
+dev = [
+  "bandit>=1.7.1",
+  "black>=23.9.1",
+  "darglint>=1.8.1",
+  "flake8>=7.0.0",
+  "isort[colors]>=5.10.1",
+  "mypy>=0.910",
+  "mypy-extensions>=0.4.3",
+  "pre-commit>=2.15.0",
+  "pylint>=2.11.1",
+  "pytest>=6.2.5",
+]
 
 [tool.black]
 # https://github.com/psf/black
@@ -84,7 +80,7 @@ color_output = true
 
 [tool.mypy]
 # https://mypy.readthedocs.io/en/latest/config_file.html#using-a-pyproject-toml-file
-python_version = 3.9
+python_version = "3.9"
 pretty = true
 show_traceback = true
 color_output = true
@@ -108,11 +104,20 @@ warn_unreachable = true
 warn_unused_configs = true
 warn_unused_ignores = true
 
-
 [tool.pytest.ini_options]
 # https://docs.pytest.org/en/6.2.x/customize.html#pyproject-toml
 # Directories that are not visited by pytest collector:
-norecursedirs =["hooks", "*.egg", ".eggs", "dist", "build", "docs", ".tox", ".git", "__pycache__"]
+norecursedirs = [
+  "hooks",
+  "*.egg",
+  ".eggs",
+  "dist",
+  "build",
+  "docs",
+  ".tox",
+  ".git",
+  "__pycache__",
+]
 doctest_optionflags = ["NUMBER", "NORMALIZE_WHITESPACE", "IGNORE_EXCEPTION_DETAIL"]
 
 # Extra options:
@@ -126,12 +131,9 @@ addopts = [
 [tool.coverage.run]
 source = ["tests"]
 
-[coverage.paths]
-source = "fireplace"
+[tool.coverage.paths]
+source = ["fireplace"]
 
-[coverage.run]
-branch = true
-
-[coverage.report]
+[tool.coverage.report]
 fail_under = 50
 show_missing = true
