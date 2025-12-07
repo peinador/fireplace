@@ -40,6 +40,8 @@ MUSIC_END = pygame.USEREVENT + 1
 set_volume = lambda value: pygame.mixer.music.set_volume(value / 100 * 0.5)
 
 # leds
+TARGET_FPS = 60  # Target frames per second
+FRAME_TIME = 1.0 / TARGET_FPS  # Time per frame in seconds
 HEX_PALETTE = [
     "1f0900",
     "54370b",
@@ -96,6 +98,7 @@ if __name__ == "__main__":
         play_next(audio_files)
         start = time.time()
         stop = False
+        frame_start = time.time()
         while (time.time() - start < MAX_TIME) and not stop:
             for event in pygame.event.get():
                 # A event will be hosted
@@ -120,7 +123,13 @@ if __name__ == "__main__":
             step += 1
             temperature = screen * test_mask
             show_colors(pixels=pixels, temperature=temperature, colormap=colormap)
-            time.sleep(0.006)
+
+            # Frame rate control: sleep only the remaining time to hit target FPS
+            elapsed = time.time() - frame_start
+            sleep_time = FRAME_TIME - elapsed
+            if sleep_time > 0:
+                time.sleep(sleep_time)
+            frame_start = time.time()
 
     except Exception as e:
         logger.critical(f"Encountered error {e}")
