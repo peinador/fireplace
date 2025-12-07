@@ -1,6 +1,7 @@
 import logging
 import os
 import sys
+import threading
 import time
 from itertools import cycle
 
@@ -15,6 +16,47 @@ from fireplace.lights.led_comms import show_colors
 from fireplace.lights.noise import load_noise, noise_files_dir, quadratic_mask
 from fireplace.lights.utils import ColorMap, hex_to_rgb
 from fireplace.rotary_encoder.rotary import Counter, create_encoder_callback
+
+
+class BackgroundNoiseLoader:
+    """Loads noise files in a background thread to avoid blocking the main loop."""
+
+    def __init__(self, noise_dir):
+        self.noise_dir = noise_dir
+        self._noise_buffer = None
+        self._lock = threading.Lock()
+        self._loading = False
+
+    def start_loading(self):
+        """Start loading a noise file in the background."""
+        if self._loading:
+            return  # Already loading
+        self._loading = True
+        thread = threading.Thread(target=self._load_noise, daemon=True)
+        thread.start()
+
+    def _load_noise(self):
+        """Background thread that loads the noise file."""
+        noise = load_noise(self.noise_dir)
+        with self._lock:
+            self._noise_buffer = noise
+            self._loading = False
+
+    def get_noise(self):
+        """
+        Get the loaded noise if available, otherwise load synchronously.
+        Returns the noise array and starts loading the next one.
+        """
+        with self._lock:
+            if self._noise_buffer is not None:
+                noise = self._noise_buffer
+                self._noise_buffer = None
+            else:
+                # Fallback: load synchronously if buffer is empty
+                noise = load_noise(self.noise_dir)
+        # Start loading next noise file in background
+        self.start_loading()
+        return noise
 
 # logging
 logger = logging.getLogger(__name__)
@@ -86,8 +128,8 @@ if __name__ == "__main__":
     set_volume(counter.value)
 
     # init leds
-    noise = load_noise(noise_files_dir)
-    noise_back = load_noise(noise_files_dir)
+    noise_loader = BackgroundNoiseLoader(noise_files_dir)
+    noise = noise_loader.get_noise()  # Load first noise file
     colormap = ColorMap(rgb_palette)
     test_mask = quadratic_mask(screen_size, 0.2, 1.2).T
     window = screen_size[1]
@@ -115,10 +157,10 @@ if __name__ == "__main__":
             if step < max_step:
                 screen = noise[step : (step + window)]
             else:
+                # Switch to next noise file (loaded in background)
                 step = 0
-                noise = noise_back
+                noise = noise_loader.get_noise()
                 max_step = noise.shape[0] - window
-                noise_back = load_noise(noise_files_dir)
                 screen = noise[step : (step + window)]
             step += 1
             temperature = screen * test_mask
