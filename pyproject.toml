@@ -21,14 +21,17 @@ classifiers = [
   "Programming Language :: Python :: 3.9",
 ]
 dependencies = [
-  "click>=8.0.0",
   "numpy>=1.26.4",
-  "matplotlib>=3.8.3",
 ]
 
 [project.urls]
 Homepage = "https://github.com/peinador/fireplace"
 Repository = "https://github.com/peinador/fireplace"
+
+[project.optional-dependencies]
+notebook = [
+  "matplotlib>=3.8.3",
+]
 
 [dependency-groups]
 dev = [
