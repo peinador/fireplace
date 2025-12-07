@@ -127,11 +127,17 @@ Run the fireplace directly from the command line:
 cd ~/fireplace
 source .venv/bin/activate
 
-# Run for 60 minutes (default)
+# Run for 60 minutes (default) with 10 min fade-out
 sudo python fireplace/main.py
 
 # Run for a specific duration
 sudo python fireplace/main.py --duration 30
+
+# Custom fade-out duration (gradually decrease volume/brightness)
+sudo python fireplace/main.py --duration 60 --fade-out 15
+
+# Disable fade-out
+sudo python fireplace/main.py --duration 30 --fade-out 0
 ```
 
 > **Note:** `sudo` is required for NeoPixel DMA access to `/dev/mem`.
@@ -152,21 +158,32 @@ The server runs on port 8000 by default.
 
 | Method | Endpoint | Description |
 |--------|----------|-------------|
-| POST | `/start` | Start the fireplace |
+| POST | `/start` | Start the fireplace (or update duration if running) |
 | POST | `/stop` | Stop the fireplace |
-| GET | `/status` | Get current status |
+| POST | `/volume` | Set volume (0-100) |
+| GET | `/status` | Get current status (running, remaining time, volume) |
 | GET | `/health` | Health check |
 
 #### Examples
 
 ```bash
-# Start the fireplace for 30 minutes
+# Start the fireplace for 30 minutes with 10 min fade-out
 curl -X POST http://<pi-ip>:8000/start \
   -H "Content-Type: application/json" \
-  -d '{"duration_minutes": 30}'
+  -d '{"duration_minutes": 30, "fade_out_minutes": 10}'
+
+# Update duration while running (resets timer)
+curl -X POST http://<pi-ip>:8000/start \
+  -d '{"duration_minutes": 60}'
+
+# Set volume to 50%
+curl -X POST http://<pi-ip>:8000/volume \
+  -H "Content-Type: application/json" \
+  -d '{"volume": 50}'
 
 # Check status
 curl http://<pi-ip>:8000/status
+# Response: {"running": true, "remaining_seconds": 1800, "volume": 50}
 
 # Stop the fireplace
 curl -X POST http://<pi-ip>:8000/stop
