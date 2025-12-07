@@ -1,9 +1,10 @@
 import os
 import subprocess
 import threading
+from collections.abc import Iterator
 from itertools import cycle
 from logging import getLogger
-from typing import Callable, Iterator, Optional
+from typing import Callable, Optional
 
 logger = getLogger(__name__)
 
@@ -36,9 +37,7 @@ def detect_i2s_device() -> str:
                 # Format: "card N: NAME [DESCRIPTION], device M: ..."
                 parts = line.split(":")
                 if len(parts) >= 2:
-                    card_part = parts[0]  # "card N"
                     name_part = parts[1].split("[")[0].strip()  # "NAME"
-                    card_num = card_part.replace("card ", "").strip()
                     device = f"plughw:CARD={name_part},DEV=0"
                     logger.info(f"Auto-detected I2S audio device: {device}")
                     return device
@@ -60,8 +59,6 @@ def get_alsa_device() -> str:
         return env_device
 
     return detect_i2s_device()
-
-
 
 
 def is_audio_file(path: str) -> bool:
@@ -91,9 +88,8 @@ def get_audio_files(audio_path: str) -> Iterator[str]:
 
 class AudioPlayer:
     """
-    Lightweight audio player using subprocess.
-    Uses mpg123 for MP3 files and aplay for WAV files.
-    Much lighter than pygame's full SDL stack.
+    Lightweight audio player using mpg123 in remote control mode.
+    Supports real-time volume control via stdin commands.
     """
 
     def __init__(self, on_song_end: Optional[Callable[[], None]] = None):
@@ -106,97 +102,124 @@ class AudioPlayer:
         self._volume = 50  # 0-100
         self._monitor_thread: Optional[threading.Thread] = None
         self._stopping = False
-        self._current_filepath: Optional[str] = None
+        self._lock = threading.Lock()
         # Auto-detect ALSA device on first instantiation
         self._alsa_device = get_alsa_device()
 
+    def _ensure_process(self) -> bool:
+        """Ensure mpg123 remote process is running. Returns True if ready."""
+        if self._process is not None and self._process.poll() is None:
+            return True
+
+        try:
+            # Start mpg123 in remote control mode
+            # -R: remote control mode (reads commands from stdin)
+            # -o alsa: use ALSA output
+            # -a: specify device
+            cmd = [
+                "mpg123",
+                "-R",
+                "-o",
+                "alsa",
+                "-a",
+                self._alsa_device,
+            ]
+            self._process = subprocess.Popen(
+                cmd,
+                stdin=subprocess.PIPE,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                text=True,
+                bufsize=1,  # Line buffered
+            )
+            logger.info("Started mpg123 in remote control mode")
+
+            # Set initial volume
+            self._send_command(f"VOLUME {self._volume}")
+
+            return True
+        except FileNotFoundError:
+            logger.error("mpg123 not found. Install with: sudo apt-get install mpg123")
+            return False
+        except Exception as e:
+            logger.error(f"Failed to start mpg123: {e}")
+            return False
+
+    def _send_command(self, command: str) -> None:
+        """Send a command to mpg123 remote control."""
+        if self._process is None or self._process.stdin is None:
+            return
+        try:
+            with self._lock:
+                self._process.stdin.write(command + "\n")
+                self._process.stdin.flush()
+            logger.debug(f"Sent command: {command}")
+        except (BrokenPipeError, OSError) as e:
+            logger.warning(f"Failed to send command: {e}")
+
     def play(self, filepath: str) -> None:
         """Play an audio file."""
-        self.stop()  # Stop any currently playing audio
-
         ext = os.path.splitext(filepath)[1].lower()
-        logger.info(f"Now playing: {filepath}")
 
         if not os.path.exists(filepath):
             logger.error(f"Audio file not found: {filepath}")
             return
 
-        # Calculate volume factor (mpg123 uses 0-32768, we scale from 0-100)
-        volume_factor = int((self._volume / 100) * 32768)
-        logger.info(f"Playing with volume {self._volume}% (factor: {volume_factor})")
-
-        if ext == ".mp3":
-            # mpg123: -o alsa forces ALSA, -a specifies device, --no-control disables terminal
-            cmd = [
-                "mpg123",
-                "-o", "alsa",
-                "-a", self._alsa_device,
-                "--no-control",
-                "-f", str(volume_factor),
-                filepath,
-            ]
-        elif ext == ".wav":
-            # aplay for WAV files, specify device explicitly
-            cmd = ["aplay", "-q", "-D", self._alsa_device, filepath]
-        else:
-            logger.warning(f"Unsupported format: {ext}")
+        if ext != ".mp3":
+            logger.warning(f"Remote mode only supports MP3, got: {ext}")
             return
 
-        self._current_filepath = filepath
+        if not self._ensure_process():
+            return
 
-        try:
-            self._stopping = False
-            # Capture stderr to diagnose issues
-            self._process = subprocess.Popen(
-                cmd,
-                stdout=subprocess.DEVNULL,
-                stderr=subprocess.PIPE,
-            )
-            # Start monitoring thread to detect when song ends
+        self._stopping = False
+        logger.info(f"Now playing: {filepath} at volume {self._volume}%")
+
+        # Load and play the file
+        self._send_command(f"LOAD {filepath}")
+
+        # Start monitoring thread to detect when song ends
+        if self._monitor_thread is None or not self._monitor_thread.is_alive():
             self._monitor_thread = threading.Thread(
                 target=self._monitor_playback, daemon=True
             )
             self._monitor_thread.start()
-        except FileNotFoundError:
-            logger.error(f"Audio player command not found: {cmd[0]}")
-            logger.error("Install with: sudo apt-get install mpg123")
 
     def _monitor_playback(self) -> None:
-        """Monitor the subprocess and call callback when it ends."""
-        if self._process is None:
+        """Monitor mpg123 output to detect when songs end."""
+        if self._process is None or self._process.stdout is None:
             return
 
-        # Wait for process to finish and capture stderr
-        _, stderr = self._process.communicate()
-        exit_code = self._process.returncode
-
-        # Log any errors
-        if exit_code != 0:
-            stderr_text = stderr.decode() if stderr else ""
-            logger.warning(f"Audio player exited with code {exit_code}")
-            if stderr_text:
-                logger.warning(f"Audio player stderr: {stderr_text[:200]}")
-
-        if not self._stopping and self._on_song_end:
-            self._on_song_end()
+        try:
+            for line in self._process.stdout:
+                line = line.strip()
+                # @P 0 = playback stopped (song finished)
+                # @P 1 = playback paused
+                # @P 2 = playback playing
+                if line == "@P 0" and not self._stopping:
+                    logger.info("Song finished")
+                    if self._on_song_end:
+                        self._on_song_end()
+                # @E = error messages
+                elif line.startswith("@E"):
+                    logger.warning(f"mpg123 error: {line}")
+        except Exception as e:
+            if not self._stopping:
+                logger.warning(f"Monitor thread error: {e}")
 
     def stop(self) -> None:
         """Stop the currently playing audio."""
         self._stopping = True
-        if self._process is not None:
-            self._process.terminate()
-            try:
-                self._process.wait(timeout=1)
-            except subprocess.TimeoutExpired:
-                self._process.kill()
-            self._process = None
+        self._send_command("STOP")
 
     def set_volume(self, volume: int) -> None:
         """
         Set the playback volume (0-100).
-        Volume is applied via mpg123's -f flag on next play.
+        Takes effect immediately on currently playing audio.
         """
         self._volume = max(0, min(100, volume))
+        self._send_command(f"VOLUME {self._volume}")
+        logger.debug(f"Volume set to {self._volume}%")
 
     def is_playing(self) -> bool:
         """Check if audio is currently playing."""
@@ -204,4 +227,11 @@ class AudioPlayer:
 
     def cleanup(self) -> None:
         """Clean up resources."""
-        self.stop()
+        self._stopping = True
+        if self._process is not None:
+            self._send_command("QUIT")
+            try:
+                self._process.wait(timeout=2)
+            except subprocess.TimeoutExpired:
+                self._process.kill()
+            self._process = None

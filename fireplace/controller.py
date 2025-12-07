@@ -96,6 +96,8 @@ class Fireplace:
         self._thread: Optional[threading.Thread] = None
         self._start_time: Optional[float] = None
         self._duration_seconds: Optional[float] = None
+        self._fade_out_seconds: float = 0
+        self._fade_start_volume: Optional[float] = None
         self._lock = threading.Lock()
 
         # Hardware references (initialized on start)
@@ -121,29 +123,67 @@ class Fireplace:
         remaining = self._duration_seconds - elapsed
         return max(0, int(remaining))
 
-    def start(self, duration_minutes: float = 60) -> bool:
+    @property
+    def volume(self) -> int:
+        """Get current volume (0-100)."""
+        if self._counter is not None:
+            return int(self._counter.value)
+        return 80  # Default
+
+    def set_volume(self, value: int) -> bool:
         """
-        Start the fireplace animation.
+        Set the volume (0-100). Also affects LED brightness.
+
+        Returns:
+            True if set successfully, False if not running.
+        """
+        if not self._running or self._counter is None:
+            return False
+        value = max(0, min(100, value))
+        self._counter.value = value
+        self._counter.run_callbacks()
+        return True
+
+    def start(self, duration_minutes: float = 60, fade_out_minutes: float = 10) -> bool:
+        """
+        Start the fireplace animation, or update duration if already running.
 
         Args:
             duration_minutes: How long to run the animation in minutes.
+            fade_out_minutes: Gradually fade volume/brightness to 0 over the last N minutes.
 
         Returns:
-            True if started successfully, False if already running.
+            True if started/updated successfully.
         """
         with self._lock:
+            new_duration = duration_minutes * 60
+            new_fade = min(fade_out_minutes * 60, new_duration)
+
             if self._running:
-                logger.warning("Fireplace is already running")
-                return False
+                # Update duration and reset fade state
+                self._duration_seconds = new_duration
+                self._fade_out_seconds = new_fade
+                self._fade_start_volume = None  # Reset fade
+                self._start_time = time.time()  # Reset timer
+                logger.info(
+                    f"Fireplace timer updated: {duration_minutes} minutes "
+                    f"(fade-out: last {fade_out_minutes} minutes)"
+                )
+                return True
 
             self._running = True
             self._stop_event.clear()
-            self._duration_seconds = duration_minutes * 60
+            self._duration_seconds = new_duration
+            self._fade_out_seconds = new_fade
+            self._fade_start_volume = None
             self._start_time = time.time()
 
         self._thread = threading.Thread(target=self._run_loop, daemon=True)
         self._thread.start()
-        logger.info(f"Fireplace started for {duration_minutes} minutes")
+        logger.info(
+            f"Fireplace started for {duration_minutes} minutes "
+            f"(fade-out: last {fade_out_minutes} minutes)"
+        )
         return True
 
     def stop(self) -> bool:
@@ -181,6 +221,41 @@ class Fireplace:
         """Set audio volume (0-100)."""
         if self._audio_player is not None:
             self._audio_player.set_volume(int(value))
+
+    def _apply_fade_out(self) -> None:
+        """Apply fade-out if we're in the fade window. Called periodically."""
+        if (
+            self._fade_out_seconds <= 0
+            or self._counter is None
+            or self._duration_seconds is None
+            or self._start_time is None
+        ):
+            return
+
+        remaining = self._duration_seconds - (time.time() - self._start_time)
+
+        # Not yet in fade window
+        if remaining > self._fade_out_seconds:
+            return
+
+        # Capture volume when fade begins
+        if self._fade_start_volume is None:
+            self._fade_start_volume = self._counter.value
+            logger.info(
+                f"Starting fade-out from volume {self._fade_start_volume} "
+                f"over {self._fade_out_seconds / 60:.1f} minutes"
+            )
+
+        # Calculate target volume: linear interpolation from fade_start_volume to 0
+        fade_progress = 1 - (remaining / self._fade_out_seconds)  # 0 -> 1
+        target_volume = self._fade_start_volume * (1 - fade_progress)
+
+        # Only update if changed (avoid excessive updates)
+        current = self._counter.value
+        if abs(current - target_volume) >= 1:
+            self._counter.value = target_volume
+            self._counter.run_callbacks()
+            logger.debug(f"Fade: volume -> {target_volume:.0f}%")
 
     def _run_loop(self):
         """Main animation loop (runs in background thread)."""
@@ -251,13 +326,21 @@ class Fireplace:
         step = 0
 
         frame_start = time.time()
+        last_fade_check = 0.0
 
         while not self._stop_event.is_set():
+            current_time = time.time()
+
             # Check if duration has elapsed
             if self._duration_seconds is not None and self._start_time is not None:
-                if time.time() - self._start_time >= self._duration_seconds:
+                if current_time - self._start_time >= self._duration_seconds:
                     logger.info("Duration elapsed, stopping")
                     break
+
+            # Apply fade-out (check once per second to avoid overhead)
+            if current_time - last_fade_check >= 5.0:
+                self._apply_fade_out()
+                last_fade_check = current_time
 
             # Update animation frame
             if step < max_step:
