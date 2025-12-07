@@ -1,0 +1,17 @@
+[Unit]
+Description=Fireplace API Server
+After=network.target sound.target
+Wants=network.target
+
+[Service]
+Type=simple
+ExecStart=/home/pi/fireplace/.venv/bin/python /home/pi/fireplace/fireplace/api.py
+WorkingDirectory=/home/pi/fireplace
+Environment=TERM=xterm
+# Uncomment if auto-detection doesn't work:
+# Environment=ALSA_DEVICE=softvol
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

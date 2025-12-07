@@ -15,6 +15,10 @@ dependencies = [
   "numpy>=1.26.4",
 ]
 
+[project.scripts]
+fireplace = "fireplace.main:main"
+fireplace-server = "fireplace.api:run_server"
+
 [project.urls]
 Homepage = "https://github.com/peinador/fireplace"
 Repository = "https://github.com/peinador/fireplace"
