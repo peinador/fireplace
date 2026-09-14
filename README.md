@@ -72,6 +72,11 @@ source .venv/bin/activate
 # Install Adafruit libraries for NeoPixel control
 pip install rpi_ws281x adafruit-circuitpython-neopixel adafruit-blinka
 
+# adafruit-blinka pulls in the real RPi.GPIO package, which shadows the
+# system's python3-rpi-lgpio shim installed in Step 2 and breaks GPIO edge
+# detection (see Troubleshooting). Remove it so the system shim is used:
+pip uninstall -y RPi.GPIO
+
 # Install the fireplace package
 pip install -e .
 ```
@@ -288,6 +293,11 @@ sudo raspi-config
 
 - Use `python3-rpi-lgpio`, not `python3-rpi.gpio`
 - Reboot after changing GPIO libraries
+- If you already did both and still see this error, `adafruit-blinka` likely
+  pulled the real `RPi.GPIO` package into your venv, shadowing the system
+  `python3-rpi-lgpio` shim. Check with `.venv/bin/python3 -c "import RPi.GPIO; print(RPi.GPIO.__file__)"`
+  — it should resolve to `/usr/lib/python3/dist-packages/...`, not
+  `.venv/lib/.../site-packages/...`. Fix with `.venv/bin/pip uninstall -y RPi.GPIO`.
 
 ### LEDs not working / Permission denied
 
