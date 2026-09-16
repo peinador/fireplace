@@ -13,8 +13,15 @@ Additionally, a rotary encoder provides control over the intensity of the LEDs a
 
 ### Prerequisites
 
-- Raspberry Pi Zero W (or Zero W2) with Raspberry Pi OS (Bookworm or later)
+- Raspberry Pi Zero W (or Zero W2) with **Raspberry Pi OS Lite** (Bookworm or later)
 - Hardware components connected (see [Wiring](#wiring) section)
+
+> **Use Lite, not Desktop.** The Pi Zero W has only ~437MB of usable RAM. The
+> full desktop image (Wayland compositor, VNC server, PipeWire, file manager,
+> etc.) alone can leave under 20MB available, causing OOM kills and freezes
+> under any real load, at boot or hours in. If flashing with Raspberry Pi
+> Imager, pick "Raspberry Pi OS Lite (32-bit)" under Raspberry Pi OS (other) —
+> this Pi's ARMv6 chip can't run the 64-bit image at all.
 
 ### Step 1: Configure I2S Audio
 
@@ -41,10 +48,14 @@ deactivate
 1. First reboot enables the I2S hardware
 2. Second reboot (after testing audio) enables volume control in alsamixer
 
+When the installer asks **"Activate '/dev/zero' playback in background? [RECOMMENDED]"**, answer **yes**. This keeps the DAC continuously fed to eliminate popping/clicking between playbacks. `fireplace.service` already sets `ALSA_DEVICE=softvol` to match — mpg123 must go through the same softvol/dmix chain as this background stream rather than opening the hardware device directly, or the two conflict and audio silently produces no sound at all (see Troubleshooting).
+
 After the second reboot, test audio:
 ```bash
 speaker-test -c2 -t wav
 ```
+
+If you still hear occasional pops/glitches under load, increase the buffer sizes in `/etc/asound.conf` (written by the installer) — find the `pcm.dmixer` block and raise `period_size` (e.g. 1024 → 4096) and `buffer_size` (e.g. 8192 → 32768). This trades a bit of latency (imperceptible for ambient fire sound) for much more tolerance of CPU scheduling jitter on the Pi Zero's single core.
 
 ### Step 2: Install system packages
 
@@ -283,6 +294,7 @@ sudo raspi-config
 2. Test audio directly: `sudo mpg123 -o alsa -a softvol <file.mp3>`
 3. Try different ALSA devices from `aplay -L`
 4. Check that you rebooted **twice** after I2S installer
+5. If `aplay.service` (the background silence playback) is enabled, mpg123 **must** use `ALSA_DEVICE=softvol` (already set in `fireplace.service`). If something plays with no error but produces no sound, check `systemctl status aplay.service` — if it's active, mpg123 is likely trying to open the raw `plughw:CARD=...` device directly, which conflicts with `aplay.service` holding the device via the softvol/dmix chain.
 
 ### Audio works from command line but not from script
 

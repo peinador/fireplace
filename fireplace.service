@@ -1,6 +1,6 @@
 [Unit]
 Description=Fireplace API Server
-After=network.target sound.target
+After=network.target sound.target adafruit-i2samp-init.service
 Wants=network.target
 
 [Service]
@@ -8,8 +8,11 @@ Type=simple
 ExecStart=/home/pi/fireplace/.venv/bin/python /home/pi/fireplace/fireplace/api.py
 WorkingDirectory=/home/pi/fireplace
 Environment=TERM=xterm
-# Uncomment if auto-detection doesn't work:
-# Environment=ALSA_DEVICE=softvol
+# Required: the I2S installer's recommended background silence playback
+# (aplay.service) holds the audio device via the softvol/dmix chain. If
+# mpg123 instead opens the auto-detected plughw device directly, the two
+# conflict and audio silently produces no sound. See README Troubleshooting.
+Environment=ALSA_DEVICE=softvol
 Restart=on-failure
 RestartSec=5
 

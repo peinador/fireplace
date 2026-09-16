@@ -65,8 +65,13 @@ class BackgroundNoiseLoader:
 CLK_PIN = 23
 DT_PIN = 8
 AUDIO_PATH = "/home/pi/fireplace/data/audio_files"
-TARGET_FPS = 32
+TARGET_FPS = 16
 FRAME_TIME = 1.0 / TARGET_FPS
+# Noise data was authored assuming 32 FPS playback. Step through it faster
+# than 1 index/frame when running at a lower FPS so the flame's perceived
+# motion speed stays the same, just with fewer (bigger) steps.
+DESIGN_FPS = 32
+STEP_PER_FRAME = max(1, round(DESIGN_FPS / TARGET_FPS))
 HEX_PALETTE = [
     "1f0900",
     "54370b",
@@ -351,7 +356,7 @@ class Fireplace:
                 max_step = noise.shape[0] - window
                 screen = noise[step : (step + window)]
 
-            step += 1
+            step += STEP_PER_FRAME
             temperature = screen * test_mask
             show_colors(pixels=self._pixels, temperature=temperature, colormap=colormap)
 
