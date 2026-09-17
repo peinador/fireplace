@@ -74,6 +74,7 @@ class FireplaceHandler(BaseHTTPRequestHandler):
             body = self._read_json_body()
             duration_minutes = body.get("duration_minutes", 30)
             fade_out_minutes = body.get("fade_out_minutes", 10)
+            volume = body.get("volume")
 
             # Validate duration
             if not isinstance(duration_minutes, (int, float)) or duration_minutes <= 0:
@@ -94,10 +95,23 @@ class FireplaceHandler(BaseHTTPRequestHandler):
                 )
                 return
 
+            # Validate volume (optional)
+            if volume is not None:
+                if not isinstance(volume, (int, float)):
+                    self._send_json_response(400, {"error": "volume must be a number"})
+                    return
+                if volume < 0 or volume > 100:
+                    self._send_json_response(
+                        400, {"error": "volume must be between 0 and 100"}
+                    )
+                    return
+                volume = int(volume)
+
             was_running = fireplace.is_running
             fireplace.start(
                 duration_minutes=duration_minutes,
                 fade_out_minutes=fade_out_minutes,
+                volume=volume,
             )
 
             action = "updated" if was_running else "started"
@@ -106,6 +120,7 @@ class FireplaceHandler(BaseHTTPRequestHandler):
                 {
                     "message": f"Fireplace {action} for {duration_minutes} minutes",
                     "fade_out_minutes": fade_out_minutes,
+                    "volume": fireplace.volume,
                 },
             )
 

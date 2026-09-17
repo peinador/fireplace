@@ -86,6 +86,7 @@ SCREEN_SIZE = (8, 8)
 NUM_PIXELS = np.prod(SCREEN_SIZE)
 PIXEL_PIN = board.D12
 COLOR_ORDER = neopixel.GRB
+DEFAULT_VOLUME = 80
 
 
 class Fireplace:
@@ -103,6 +104,7 @@ class Fireplace:
         self._duration_seconds: Optional[float] = None
         self._fade_out_seconds: float = 0
         self._fade_start_volume: Optional[float] = None
+        self._initial_volume: int = DEFAULT_VOLUME
         self._lock = threading.Lock()
 
         # Hardware references (initialized on start)
@@ -133,7 +135,7 @@ class Fireplace:
         """Get current volume (0-100)."""
         if self._counter is not None:
             return int(self._counter.value)
-        return 80  # Default
+        return self._initial_volume
 
     def set_volume(self, value: int) -> bool:
         """
@@ -149,17 +151,28 @@ class Fireplace:
         self._counter.run_callbacks()
         return True
 
-    def start(self, duration_minutes: float = 60, fade_out_minutes: float = 10) -> bool:
+    def start(
+        self,
+        duration_minutes: float = 60,
+        fade_out_minutes: float = 10,
+        volume: Optional[int] = None,
+    ) -> bool:
         """
         Start the fireplace animation, or update duration if already running.
 
         Args:
             duration_minutes: How long to run the animation in minutes.
             fade_out_minutes: Gradually fade volume/brightness to 0 over the last N minutes.
+            volume: Volume to start at (0-100). Defaults to DEFAULT_VOLUME on a
+                fresh start, or leaves the current volume unchanged if already
+                running and this is omitted.
 
         Returns:
             True if started/updated successfully.
         """
+        if volume is not None:
+            volume = max(0, min(100, int(volume)))
+
         with self._lock:
             new_duration = duration_minutes * 60
             new_fade = min(fade_out_minutes * 60, new_duration)
@@ -174,6 +187,8 @@ class Fireplace:
                     f"Fireplace timer updated: {duration_minutes} minutes "
                     f"(fade-out: last {fade_out_minutes} minutes)"
                 )
+                if volume is not None:
+                    self.set_volume(volume)
                 return True
 
             self._running = True
@@ -181,6 +196,7 @@ class Fireplace:
             self._duration_seconds = new_duration
             self._fade_out_seconds = new_fade
             self._fade_start_volume = None
+            self._initial_volume = volume if volume is not None else DEFAULT_VOLUME
             self._start_time = time.time()
 
         self._thread = threading.Thread(target=self._run_loop, daemon=True)
@@ -303,7 +319,7 @@ class Fireplace:
         GPIO.setup(DT_PIN, GPIO.IN, pull_up_down=GPIO.PUD_UP)
 
         self._counter = Counter(
-            value=80,
+            value=self._initial_volume,
             range=(0, 100),
             step=2,
             callbacks=[self._set_volume, self._set_brightness],

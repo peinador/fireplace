@@ -174,7 +174,7 @@ The server runs on port 8000 by default.
 
 | Method | Endpoint | Description |
 |--------|----------|-------------|
-| POST | `/start` | Start the fireplace (or update duration if running) |
+| POST | `/start` | Start the fireplace (or update duration/volume if running) |
 | POST | `/stop` | Stop the fireplace |
 | POST | `/volume` | Set volume (0-100) |
 | GET | `/status` | Get current status (running, remaining time, volume) |
@@ -187,6 +187,11 @@ The server runs on port 8000 by default.
 curl -X POST http://<pi-ip>:8000/start \
   -H "Content-Type: application/json" \
   -d '{"duration_minutes": 30, "fade_out_minutes": 10}'
+
+# Start at a specific volume (0-100, defaults to 80 if omitted)
+curl -X POST http://<pi-ip>:8000/start \
+  -H "Content-Type: application/json" \
+  -d '{"duration_minutes": 30, "volume": 40}'
 
 # Update duration while running (resets timer)
 curl -X POST http://<pi-ip>:8000/start \

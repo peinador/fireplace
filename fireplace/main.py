@@ -42,6 +42,12 @@ def main():
         dest="fade_out",
         help="Fade out volume/brightness over the last N minutes",
     )
+    parser.add_argument(
+        "--volume",
+        type=int,
+        default=None,
+        help="Volume to start at (0-100). Defaults to the built-in default.",
+    )
     args = parser.parse_args()
 
     fireplace = Fireplace()
@@ -57,7 +63,11 @@ def main():
         f"Starting fireplace for {args.duration} minutes "
         f"(fade-out: last {args.fade_out} minutes)"
     )
-    fireplace.start(duration_minutes=args.duration, fade_out_minutes=args.fade_out)
+    fireplace.start(
+        duration_minutes=args.duration,
+        fade_out_minutes=args.fade_out,
+        volume=args.volume,
+    )
 
     # Block until fireplace stops (either naturally or via signal)
     fireplace.wait()
